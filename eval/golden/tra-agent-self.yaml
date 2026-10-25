@@ -1,0 +1,52 @@
+id: tra-agent-self
+title: TRA agent (pre-pilot self-assessment)
+work_type: new_system
+artefacts:
+  - [git, tra-agent-design.md]
+notes: >
+  The agent's own design. Run before the pilot and after any architecture
+  change; the output is the draft for the agent's own TRA, which a person who
+  did not build the agent reviews. Expectations are the threats the design
+  doc's section 7 names.
+expect:
+  classification: OFFICIAL_SENSITIVE
+  tier: 2
+  elements:
+    - orchestrator
+    - specialist|threat analyst|agent
+    - artefacts mcp|artefact
+    - audit
+    - model provider|model|llm
+    - risk register|register|eramba
+  threats:
+    - element: specialist|threat analyst|agent|artefact
+      stride: [T, E]
+      library: [TL-051]
+      atlas: [AML.T0051.001]
+      why: designs are written by delivery teams and reach the model
+    - element: orchestrator|risk owner|practitioner|gate
+      stride: [R, E]
+      library: [TL-060, TL-005]
+      why: rubber-stamped gates turn a draft into an accepted risk
+    - element: mcp|specialist|orchestrator
+      stride: [S, E]
+      library: [TL-003]
+      why: a token meant for one hop replayed at another
+    - element: audit
+      stride: [R, T]
+      library: [TL-035, TL-005]
+      why: the audit log is the evidence the gates happened
+    - element: state store|state|register
+      stride: [I]
+      library: [TL-015, TL-010]
+      why: every system's threats in one place is a high-value aggregate
+    - element: mcp|model provider|model|specialist
+      stride: [T]
+      library: [TL-057, TL-031]
+      atlas: [AML.T0010]
+      why: compromised MCP server, model or dependency
+  risks:
+    - element: state store|state|register
+      min_residual: Medium
+      why: aggregation of every system's weaknesses
+  critique: []

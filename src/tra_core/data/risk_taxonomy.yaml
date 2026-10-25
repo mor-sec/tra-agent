@@ -1,0 +1,178 @@
+# Cyber risk taxonomy. Every risk in a TRA carries one category from here, so
+# risks aggregate across TRAs in the register and gaps across the portfolio show.
+#
+# Two levels. Level 1 (three letters) groups risks by where the weakness sits,
+# which is also who usually owns the fix. Level 2 (LLL.n) is the category a
+# risk is recorded against. A risk goes in the category of its root cause, not
+# its consequence: a pipeline key committed to a repository that leads to a data breach is SDL.4,
+# not DAT.1. Consequences are rated through impact (C, I, A), not categorised.
+#
+# always_consider: the critic raises a minor issue when a TRA records no risk
+# in this level 1 category, so the practitioner confirms it was considered and
+# found not to apply, rather than missed.
+#
+# See docs/03-risk-methodology.md section 3.7 for the method and sources.
+
+meta:
+  version: "2026.10.0"
+  owner: security-architecture
+  review_due: "2027-04-30"
+
+categories:
+  - id: IAM
+    name: Identity and access
+    definition: Who or what can authenticate, and what they can do once they have.
+    always_consider: false
+    subcategories:
+      - {id: IAM.1, name: Authentication weakness, description: "Credentials phished, guessed, reused or bypassed; MFA absent or not phishing-resistant."}
+      - {id: IAM.2, name: Excessive or unreviewed privilege, description: "Roles broader than needed, standing admin access, privilege that accumulates."}
+      - {id: IAM.3, name: Workload and token misuse, description: "Static workload secrets, tokens accepted by the wrong service, delegation without audience binding."}
+      - {id: IAM.4, name: Identity lifecycle, description: "Leavers keep access, shared or orphaned accounts, no joiner-mover-leaver automation."}
+
+  - id: DAT
+    name: Data protection
+    definition: Disclosure, corruption or loss of information through how it is stored, moved, combined and retained.
+    always_consider: false
+    subcategories:
+      - {id: DAT.1, name: Unauthorised disclosure, description: "Exposure from stores, transit or egress; includes over-sharing to legitimate users."}
+      - {id: DAT.2, name: Integrity of records, description: "Unauthorised or undetected change to stored data."}
+      - {id: DAT.3, name: Aggregation and classification, description: "Combined data needs a higher classification than the system is built for; labels missing or wrong."}
+      - {id: DAT.4, name: Privacy and retention, description: "Personal information handled outside its purpose or kept longer than needed (Privacy Act, APPs)."}
+      - {id: DAT.5, name: Data residency and sovereignty, description: "Data stored, processed or accessible outside Australia or outside the agreed jurisdiction."}
+
+  - id: APP
+    name: Application and API
+    definition: Weaknesses in the running application's logic and interfaces.
+    always_consider: false
+    subcategories:
+      - {id: APP.1, name: Injection and input handling, description: "SQL, command, template or script injection; unsafe deserialisation."}
+      - {id: APP.2, name: Broken authorisation, description: "Object- or function-level access checks missing in the application."}
+      - {id: APP.3, name: Client-side and third-party script, description: "Browser-side tampering, skimming, malicious or compromised scripts."}
+      - {id: APP.4, name: Business logic abuse, description: "Legitimate functions used in unintended ways: fraud, scraping, enumeration."}
+
+  - id: INF
+    name: Infrastructure and cloud configuration
+    definition: The platform the system runs on, as configured by the organisation.
+    always_consider: false
+    subcategories:
+      - {id: INF.1, name: Misconfiguration and drift, description: "Insecure defaults, public exposure, configuration that drifts from the reviewed baseline."}
+      - {id: INF.2, name: Network exposure and segmentation, description: "Flat networks, unnecessary paths, management interfaces reachable."}
+      - {id: INF.3, name: Unpatched or end-of-support component, description: "Known vulnerabilities, platforms past vendor support, legacy technology."}
+      - {id: INF.4, name: Control-plane compromise, description: "Cloud account, organisation or tenant-level control taken or misused."}
+
+  - id: SDL
+    name: Software development
+    definition: >-
+      Weaknesses introduced while the system is designed, written, built and
+      deployed, before it runs. Aligned to the NIST SSDF and the ISM software
+      development guidelines.
+    always_consider: true
+    subcategories:
+      - {id: SDL.1, name: Insecure design, description: "No threat model, missing security requirements, design flaws that code review cannot catch."}
+      - {id: SDL.2, name: Code defects and testing gaps, description: "Vulnerabilities written into code and not found by SAST, DAST, SCA or review before release."}
+      - {id: SDL.3, name: Build and pipeline integrity, description: "Pipeline runs untrusted code, holds standing privilege, or can be changed without review; artefacts not signed or traceable."}
+      - {id: SDL.4, name: Secrets and configuration in code, description: "Credentials, keys or environment configuration committed to repositories or images."}
+      - {id: SDL.5, name: Change and release control, description: "Changes reach production without review, segregation of duties or the ability to roll back."}
+
+  - id: SUP
+    name: Supply chain
+    definition: >-
+      Risk that arrives through what the organisation buys, uses or depends on:
+      software components, hardware, cloud and managed services, and their own
+      suppliers. Aligned to NIST SP 800-161 and the ISM cyber supply chain
+      guidelines. Foreign ownership, control or influence is its own category (FOC).
+    always_consider: true
+    subcategories:
+      - {id: SUP.1, name: Software component compromise, description: "Malicious, hijacked or typosquatted open source or commercial packages, images, models or plug-ins."}
+      - {id: SUP.2, name: Service provider compromise, description: "A cloud, SaaS or managed service provider is breached and its access to the system is used (trusted relationship)."}
+      - {id: SUP.3, name: Supplier security posture, description: "Supplier does not meet the security, transparency or assurance the system needs; shared responsibility unclear."}
+      - {id: SUP.4, name: Hardware and component integrity, description: "Counterfeit, tampered or unauthentic equipment and firmware."}
+      - {id: SUP.5, name: Concentration, lock-in and exit, description: "Single supplier for a critical function, no tested exit, supplier failure or withdrawal."}
+      - {id: SUP.6, name: Fourth party and subcontractor, description: "Risk in the supplier's own suppliers, offshore support or subprocessors that the contract does not reach."}
+
+  - id: FOC
+    name: Foreign ownership, control or influence
+    definition: >-
+      The ability for a vendor to be directed by a foreign government, through
+      direct ownership, the laws of its home jurisdiction or outside pressure
+      (Home Affairs FOCI risk assessment guidance). PSPF Direction 001-2024
+      requires Commonwealth entities to identify and manage FOCI risk in the
+      procurement and maintenance of technology assets.
+    always_consider: true
+    subcategories:
+      - {id: FOC.1, name: Ownership and control, description: "Vendor, parent or major shareholder is owned, controlled or financed by a foreign government or entity of concern; change of control."}
+      - {id: FOC.2, name: Extraterritorial legal compulsion, description: "Laws of the vendor's jurisdiction can compel it to give access to data or systems, or to assist intelligence services, without the customer's knowledge."}
+      - {id: FOC.3, name: Privileged foreign access, description: "Vendor personnel, support or update channels in a foreign jurisdiction hold access to the system, its data or its software updates."}
+      - {id: FOC.4, name: Directed sabotage or disruption, description: "Vendor is directed to degrade, disable or withdraw a service, or push a malicious update."}
+
+  - id: CRY
+    name: Cryptography and post-quantum transition
+    definition: >-
+      Cryptography that is weak, badly managed or quantum-vulnerable. ASD
+      recommends ceasing traditional asymmetric cryptography (RSA, DH, ECDH,
+      ECDSA) by the end of 2030; the ISM requires a PQC transition plan
+      (ISM-2073) and ML-KEM and ML-DSA support in new equipment and
+      software by 2030 (ISM-1917).
+    always_consider: true
+    subcategories:
+      - {id: CRY.1, name: Harvest now, decrypt later, description: "Data with a long confidentiality life protected by quantum-vulnerable key exchange, recorded now and decrypted when a cryptographically relevant quantum computer exists."}
+      - {id: CRY.2, name: Quantum-vulnerable signatures and trust, description: "Code signing, certificates, tokens or firmware that rely on RSA or ECC signatures with a life beyond 2030."}
+      - {id: CRY.3, name: Crypto agility and inventory, description: "No cryptographic inventory (CBOM), algorithms hard-coded, or dependencies that cannot move to PQC by 2030."}
+      - {id: CRY.4, name: Weak or legacy cryptography, description: "Deprecated algorithms, protocols or key sizes; TLS below the latest version."}
+      - {id: CRY.5, name: Key management, description: "Keys generated, stored, rotated or destroyed insecurely; no separation of key custodians."}
+
+  - id: DET
+    name: Detection, logging and response
+    definition: The ability to notice, investigate and recover from an attack.
+    always_consider: false
+    subcategories:
+      - {id: DET.1, name: Logging gaps or tampering, description: "Events not logged, not centralised, or deletable by the identities they record."}
+      - {id: DET.2, name: Detection and alerting gaps, description: "Logged but not monitored; no use cases for the system's threats."}
+      - {id: DET.3, name: Response readiness, description: "No tested plan, no evidence handling, unclear notification obligations."}
+      - {id: DET.4, name: Non-repudiation, description: "Actions cannot be attributed to a person or workload."}
+
+  - id: RES
+    name: Resilience and availability
+    definition: Keeping the service running and recoverable.
+    always_consider: false
+    subcategories:
+      - {id: RES.1, name: Denial of service and capacity, description: "Flooding, expensive operations or quota exhaustion take the service down."}
+      - {id: RES.2, name: Destructive attack and ransomware, description: "Data and backups encrypted or deleted."}
+      - {id: RES.3, name: Recovery and continuity, description: "Backups untested, recovery objectives not met, single region or zone."}
+
+  - id: AIM
+    name: AI and autonomous agents
+    definition: Risks specific to models, agents and their tools. Threats use MITRE ATLAS.
+    always_consider: false
+    subcategories:
+      - {id: AIM.1, name: Prompt injection and jailbreak, description: "Direct or indirect instructions make the model act against its purpose."}
+      - {id: AIM.2, name: Model data leakage, description: "Sensitive data in prompts, outputs, logs or training reaches the wrong party."}
+      - {id: AIM.3, name: Excessive agency, description: "Agents or tools act beyond what the user intended or can reverse."}
+      - {id: AIM.4, name: Poisoning and model integrity, description: "Training data, retrieval index, memory or model weights tampered with."}
+      - {id: AIM.5, name: Over-reliance and output quality, description: "People act on wrong or unreviewed model output."}
+
+  - id: PEO
+    name: People
+    definition: Risk from the actions, mistakes and availability of people.
+    always_consider: false
+    subcategories:
+      - {id: PEO.1, name: Social engineering, description: "Phishing, pretexting or help-desk fraud against staff."}
+      - {id: PEO.2, name: Malicious insider, description: "A trusted person misuses access."}
+      - {id: PEO.3, name: Error and skills, description: "Mistakes from complexity, missing training or key-person dependency."}
+
+  - id: GOV
+    name: Governance and compliance
+    definition: Whether risk is owned, decided and meets obligations.
+    always_consider: false
+    subcategories:
+      - {id: GOV.1, name: Regulatory and contractual non-compliance, description: "PSPF, ISM, Privacy Act, PCI DSS, SOCI Act or contract obligations not met."}
+      - {id: GOV.2, name: Unowned or expired risk acceptance, description: "Risks without an owner, accepted beyond authority, or past expiry."}
+      - {id: GOV.3, name: Technical debt and obsolescence, description: "Deferred remediation and ageing technology accumulate risk no single change owns."}
+
+  - id: PHY
+    name: Physical and environmental
+    definition: Facilities, equipment and environmental events. Usually inherited from the cloud provider; assess when the system has its own sites, devices or OT.
+    always_consider: false
+    subcategories:
+      - {id: PHY.1, name: Physical access and theft, description: "Unauthorised access to sites, devices or media."}
+      - {id: PHY.2, name: Environmental and utility failure, description: "Fire, flood, power or cooling loss; natural disaster."}

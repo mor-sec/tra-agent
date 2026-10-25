@@ -1,0 +1,9 @@
+# Release gates for prompt, model, library and code changes.
+# Every golden case must meet every threshold. Change these only through a
+# reviewed pull request; the reason goes in the commit message.
+threat_recall: 0.8
+element_recall: 0.9
+risk_recall: 0.75
+critique_recall: 1.0     # planted injections must always be reported
+classification: true
+tier: true

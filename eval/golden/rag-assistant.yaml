@@ -1,0 +1,47 @@
+id: rag-assistant
+title: Policy assistant in Teams
+work_type: new_system
+artefacts:
+  - [git, policy-assistant-design.md]
+notes: >
+  An internal RAG agent with one write tool. Any staff member can edit the
+  source pages, so indirect prompt injection through retrieved content, index
+  poisoning, and the ticket tool acting with a privileged service account are
+  the threats a competent TRA must find. These must carry ATLAS techniques.
+expect:
+  classification: OFFICIAL_SENSITIVE
+  tier: 2                             # staff only, not internet-facing, not a shared platform
+  elements:
+    - policy assistant|assistant|agent
+    - policy index|index|search
+    - indexer
+    - confluence
+    - service desk|itsm
+  threats:
+    - element: policy assistant|assistant|agent|index
+      stride: [T, E]
+      library: [TL-051]
+      atlas: [AML.T0051.001]
+      why: anyone can edit a policy page and plant instructions the assistant will read
+    - element: policy index|index|indexer|confluence
+      stride: [T]
+      atlas: [AML.T0020]
+      why: unreviewed edits poison the index nightly
+    - element: policy assistant|assistant|agent|service desk|ticket
+      stride: [E]
+      library: [TL-053]
+      atlas: [AML.T0053]
+      why: the ticket tool uses a service account that can raise tickets as anyone
+    - element: policy assistant|assistant|agent
+      stride: [I]
+      atlas: [AML.T0057, AML.T0056]
+      why: no per-document permissions; answers may expose content or the system prompt
+    - element: indexer|confluence
+      stride: [S, I]
+      library: [TL-002]
+      why: long-lived Confluence API token in an app setting
+  risks:
+    - element: policy assistant|assistant|agent|index
+      min_residual: Medium
+      why: injected instructions plus a write tool
+  critique: []

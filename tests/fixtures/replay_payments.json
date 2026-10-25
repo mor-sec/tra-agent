@@ -1,0 +1,775 @@
+{
+ "IntakeRecord": [
+  {
+   "summary": "A customer payments portal where customers pay invoices by card through a third-party gateway's hosted fields, plus an LLM support assistant that answers questions over the customer's own invoices.",
+   "work_type": "new_system",
+   "proposed_classification": "OFFICIAL_SENSITIVE",
+   "internet_facing": true,
+   "handles_cardholder_data": true,
+   "shared_platform": false,
+   "missing_information": [
+    "Network diagram and VPC layout",
+    "Authorisation model for invoice access (object-level checks)",
+    "How the assistant's retrieval is scoped to the signed-in customer",
+    "Log retention, alerting and who can delete logs"
+   ],
+   "risk_owner": "Head of Digital Payments"
+  }
+ ],
+ "SystemModel": [
+  {
+   "name": "Customer Payments Portal",
+   "summary": "Internet-facing card payment portal on AWS with a hosted-fields payment gateway and a Bedrock support assistant. The design does not describe object-level authorisation or assistant retrieval scoping.",
+   "zones": [
+    {
+     "id": "Z-INT",
+     "name": "Internet",
+     "description": "Customer devices"
+    },
+    {
+     "id": "Z-EDGE",
+     "name": "AWS edge",
+     "description": "CloudFront and WAF"
+    },
+    {
+     "id": "Z-APP",
+     "name": "App VPC",
+     "description": "ECS services and the assistant"
+    },
+    {
+     "id": "Z-DATA",
+     "name": "Data subnet",
+     "description": "RDS"
+    },
+    {
+     "id": "Z-SAAS",
+     "name": "Payment gateway",
+     "description": "Third-party PCI DSS Level 1 provider"
+    },
+    {
+     "id": "Z-IDP",
+     "name": "Customer identity",
+     "description": "Cognito"
+    }
+   ],
+   "elements": [
+    {
+     "id": "E01",
+     "name": "Customer",
+     "type": "external_entity",
+     "description": "Public internet user with a customer account",
+     "zone": "Z-INT",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": false,
+     "technologies": [],
+     "evidence": "Section 2: Customer"
+    },
+    {
+     "id": "E02",
+     "name": "Web front end",
+     "type": "process",
+     "description": "React SPA via CloudFront and WAF, embeds gateway hosted fields",
+     "zone": "Z-EDGE",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": false,
+     "technologies": [
+      "CloudFront",
+      "AWS WAF",
+      "React"
+     ],
+     "evidence": "Section 2: Web front end"
+    },
+    {
+     "id": "E03",
+     "name": "Payments API",
+     "type": "process",
+     "description": "ECS Fargate service creating payment sessions",
+     "zone": "Z-APP",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": false,
+     "technologies": [
+      "ECS Fargate",
+      "ALB"
+     ],
+     "evidence": "Section 2: Payments API"
+    },
+    {
+     "id": "E04",
+     "name": "Invoice database",
+     "type": "data_store",
+     "description": "RDS PostgreSQL with invoices and contact details, CMK encrypted",
+     "zone": "Z-DATA",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": false,
+     "technologies": [
+      "RDS PostgreSQL",
+      "KMS"
+     ],
+     "evidence": "Section 2: Invoice database"
+    },
+    {
+     "id": "E05",
+     "name": "Payment gateway",
+     "type": "external_entity",
+     "description": "Third-party PCI DSS Level 1 provider with hosted fields",
+     "zone": "Z-SAAS",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": false,
+     "technologies": [],
+     "evidence": "Section 2: Payment gateway"
+    },
+    {
+     "id": "E06",
+     "name": "Support assistant",
+     "type": "process",
+     "description": "Bedrock agent with retrieval over the invoice database",
+     "zone": "Z-APP",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": true,
+     "technologies": [
+      "Amazon Bedrock",
+      "Claude"
+     ],
+     "evidence": "Section 2: Support assistant"
+    },
+    {
+     "id": "E07",
+     "name": "Customer identity",
+     "type": "process",
+     "description": "Cognito user pool, optional TOTP MFA",
+     "zone": "Z-IDP",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": false,
+     "technologies": [
+      "Cognito"
+     ],
+     "evidence": "Section 2: Customer identity"
+    },
+    {
+     "id": "E08",
+     "name": "Application logs",
+     "type": "data_store",
+     "description": "CloudWatch Logs in the same account",
+     "zone": "Z-APP",
+     "classification": "OFFICIAL_SENSITIVE",
+     "is_ai": false,
+     "technologies": [
+      "CloudWatch Logs"
+     ],
+     "evidence": "Section 3, flow 7"
+    }
+   ],
+   "flows": [
+    {
+     "id": "F01",
+     "source": "E01",
+     "target": "E07",
+     "data": "Sign-in credentials and tokens",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "HTTPS",
+     "crosses_boundary": true,
+     "authenticated": null,
+     "encrypted": true,
+     "evidence": "Flow 1"
+    },
+    {
+     "id": "F02",
+     "source": "E01",
+     "target": "E02",
+     "data": "Page loads and API calls",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "HTTPS",
+     "crosses_boundary": true,
+     "authenticated": null,
+     "encrypted": true,
+     "evidence": "Flow 2"
+    },
+    {
+     "id": "F03",
+     "source": "E02",
+     "target": "E03",
+     "data": "API requests with access token",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "HTTP inside VPC",
+     "crosses_boundary": true,
+     "authenticated": true,
+     "encrypted": false,
+     "evidence": "Section 4: internal ALB to ECS is HTTP"
+    },
+    {
+     "id": "F04",
+     "source": "E03",
+     "target": "E04",
+     "data": "Invoice queries",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "PostgreSQL",
+     "crosses_boundary": true,
+     "authenticated": true,
+     "encrypted": null,
+     "evidence": "Flow 3"
+    },
+    {
+     "id": "F05",
+     "source": "E01",
+     "target": "E05",
+     "data": "Card data via hosted fields",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "HTTPS",
+     "crosses_boundary": true,
+     "authenticated": null,
+     "encrypted": true,
+     "evidence": "Flow 4"
+    },
+    {
+     "id": "F06",
+     "source": "E03",
+     "target": "E05",
+     "data": "Payment session API calls",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "HTTPS",
+     "crosses_boundary": true,
+     "authenticated": true,
+     "encrypted": true,
+     "evidence": "Flow 5"
+    },
+    {
+     "id": "F07",
+     "source": "E02",
+     "target": "E06",
+     "data": "Assistant questions and answers",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "HTTPS",
+     "crosses_boundary": true,
+     "authenticated": null,
+     "encrypted": true,
+     "evidence": "Flow 6"
+    },
+    {
+     "id": "F08",
+     "source": "E06",
+     "target": "E04",
+     "data": "Invoice retrieval",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": null,
+     "crosses_boundary": true,
+     "authenticated": null,
+     "encrypted": null,
+     "evidence": "Flow 6"
+    },
+    {
+     "id": "F09",
+     "source": "E03",
+     "target": "E08",
+     "data": "Application logs",
+     "classification": "OFFICIAL_SENSITIVE",
+     "protocol": "AWS API",
+     "crosses_boundary": false,
+     "authenticated": true,
+     "encrypted": true,
+     "evidence": "Flow 7"
+    }
+   ],
+   "assets": [
+    {
+     "id": "A01",
+     "name": "Invoices and customer contact data",
+     "kind": "data",
+     "classification": "OFFICIAL_SENSITIVE",
+     "confidentiality": 4,
+     "integrity": 3,
+     "availability": 3
+    },
+    {
+     "id": "A02",
+     "name": "Customer accounts",
+     "kind": "identity",
+     "classification": "OFFICIAL_SENSITIVE",
+     "confidentiality": 4,
+     "integrity": 4,
+     "availability": 3
+    },
+    {
+     "id": "A03",
+     "name": "Gateway API key",
+     "kind": "key",
+     "classification": "OFFICIAL_SENSITIVE",
+     "confidentiality": 4,
+     "integrity": 4,
+     "availability": 2
+    },
+    {
+     "id": "A04",
+     "name": "Card data in the browser",
+     "kind": "data",
+     "classification": "OFFICIAL_SENSITIVE",
+     "confidentiality": 5,
+     "integrity": 4,
+     "availability": 3
+    }
+   ]
+  }
+ ],
+ "ThreatList": [
+  {
+   "threats": [
+    {
+     "id": "T-01",
+     "element_id": "E04",
+     "stride": [
+      "S"
+     ],
+     "atlas": [],
+     "library_ref": null,
+     "statement": "Spoofing the database.",
+     "evidence": "invalid on purpose: S does not apply to a data store"
+    }
+   ]
+  },
+  {
+   "threats": [
+    {
+     "id": "T-01",
+     "element_id": "E01",
+     "stride": [
+      "S"
+     ],
+     "attack": [
+      "T1566",
+      "T1078",
+      "T1110.004",
+      "T1621"
+     ],
+     "atlas": [],
+     "library_ref": "TL-001",
+     "statement": "An attacker takes over customer accounts with phished or reused passwords because MFA is optional.",
+     "evidence": "Section 4: MFA is optional"
+    },
+    {
+     "id": "T-02",
+     "element_id": "F02",
+     "stride": [
+      "D"
+     ],
+     "attack": [
+      "T1499.003",
+      "T1498"
+     ],
+     "atlas": [],
+     "library_ref": "TL-022",
+     "statement": "A bot floods the portal with requests, degrading payments for all customers.",
+     "evidence": "Internet-facing; WAF in place but rate limits not described"
+    },
+    {
+     "id": "T-03",
+     "element_id": "E02",
+     "stride": [
+      "T",
+      "I"
+     ],
+     "attack": [
+      "T1059.007",
+      "T1056.003",
+      "T1195.001"
+     ],
+     "atlas": [],
+     "library_ref": "TL-023",
+     "statement": "A compromised third-party or injected script on the payment page skims card data before it reaches the hosted fields.",
+     "evidence": "Section 4: no content security policy"
+    },
+    {
+     "id": "T-04",
+     "element_id": "E03",
+     "stride": [
+      "I",
+      "E"
+     ],
+     "attack": [
+      "T1190"
+     ],
+     "atlas": [],
+     "library_ref": "TL-021",
+     "statement": "A signed-in customer reads another customer's invoices by changing the invoice ID in API calls.",
+     "evidence": "Object-level authorisation not described"
+    },
+    {
+     "id": "T-05",
+     "element_id": "F03",
+     "stride": [
+      "T",
+      "I"
+     ],
+     "attack": [
+      "T1557",
+      "T1040"
+     ],
+     "atlas": [],
+     "library_ref": "TL-011",
+     "statement": "An attacker with a foothold in the VPC reads or alters API traffic sent over plain HTTP between the ALB and ECS.",
+     "evidence": "Section 4: internal traffic is HTTP"
+    },
+    {
+     "id": "T-06",
+     "element_id": "E04",
+     "stride": [
+      "T",
+      "D"
+     ],
+     "attack": [
+      "T1486",
+      "T1490",
+      "T1485"
+     ],
+     "atlas": [],
+     "library_ref": "TL-014",
+     "statement": "An attacker with control-plane access deletes the database and its same-account backups.",
+     "evidence": "Backups are 7-day RDS automated backups in the same account"
+    },
+    {
+     "id": "T-07",
+     "element_id": "E03",
+     "stride": [
+      "S"
+     ],
+     "attack": [
+      "T1552.001",
+      "T1078.004",
+      "T1555.006"
+     ],
+     "atlas": [],
+     "library_ref": "TL-002",
+     "statement": "The gateway API key is exposed and used to create or refund payments.",
+     "evidence": "Key held in Secrets Manager"
+    },
+    {
+     "id": "T-08",
+     "element_id": "E06",
+     "stride": [
+      "T",
+      "E"
+     ],
+     "atlas": [
+      "AML.T0051.000"
+     ],
+     "library_ref": "TL-050",
+     "statement": "A customer uses prompt injection to make the assistant retrieve other customers' invoices.",
+     "evidence": "Scoping relies on the system prompt"
+    },
+    {
+     "id": "T-09",
+     "element_id": "E06",
+     "stride": [
+      "I"
+     ],
+     "atlas": [
+      "AML.T0057"
+     ],
+     "library_ref": "TL-054",
+     "statement": "The assistant discloses another customer's invoice details because retrieval is not filtered by the caller's identity.",
+     "evidence": "Retrieval scoping implementation not described"
+    },
+    {
+     "id": "T-10",
+     "element_id": "E08",
+     "stride": [
+      "R",
+      "T"
+     ],
+     "attack": [
+      "T1685.002",
+      "T1070"
+     ],
+     "atlas": [],
+     "library_ref": "TL-035",
+     "statement": "An attacker deletes or edits CloudWatch logs in the same account to hide activity.",
+     "evidence": "Logs stay in the workload account"
+    },
+    {
+     "id": "T-11",
+     "element_id": "E07",
+     "stride": [
+      "S"
+     ],
+     "attack": [
+      "T1566",
+      "T1078",
+      "T1110.004",
+      "T1621"
+     ],
+     "atlas": [],
+     "library_ref": "TL-001",
+     "statement": "Credential stuffing against the Cognito sign-in succeeds for accounts without MFA.",
+     "evidence": "Section 2: optional TOTP MFA"
+    }
+   ]
+  }
+ ],
+ "ControlList": [
+  {
+   "controls": [
+    {
+     "control_id": "CC-001",
+     "status": "partial",
+     "threat_ids": [
+      "T-01",
+      "T-11"
+     ],
+     "evidence": "TOTP MFA is offered but optional"
+    },
+    {
+     "control_id": "CC-014",
+     "status": "in_place",
+     "threat_ids": [
+      "T-02"
+     ],
+     "evidence": "CloudFront with AWS WAF"
+    },
+    {
+     "control_id": "CC-024",
+     "status": "missing",
+     "threat_ids": [
+      "T-03"
+     ],
+     "evidence": "not described in the artefacts; section 4 says no CSP yet"
+    },
+    {
+     "control_id": "CC-003",
+     "status": "partial",
+     "threat_ids": [
+      "T-04"
+     ],
+     "evidence": "IAM-authenticated database user; object-level checks not described"
+    },
+    {
+     "control_id": "CC-009",
+     "status": "partial",
+     "threat_ids": [
+      "T-05"
+     ],
+     "evidence": "TLS 1.2+ externally; HTTP inside the VPC"
+    },
+    {
+     "control_id": "CC-012",
+     "status": "partial",
+     "threat_ids": [
+      "T-06"
+     ],
+     "evidence": "7-day automated backups in the same account"
+    },
+    {
+     "control_id": "CC-007",
+     "status": "in_place",
+     "threat_ids": [
+      "T-07"
+     ],
+     "evidence": "Gateway key in AWS Secrets Manager"
+    },
+    {
+     "control_id": "CC-029",
+     "status": "partial",
+     "threat_ids": [
+      "T-08"
+     ],
+     "evidence": "System prompt instruction only"
+    },
+    {
+     "control_id": "CC-010",
+     "status": "missing",
+     "threat_ids": [
+      "T-09"
+     ],
+     "evidence": "not described in the artefacts"
+    },
+    {
+     "control_id": "CC-015",
+     "status": "partial",
+     "threat_ids": [
+      "T-10"
+     ],
+     "evidence": "CloudWatch Logs in the same account"
+    }
+   ]
+  }
+ ],
+ "RiskList": [
+  {
+   "risks": [
+    {
+     "id": "R-01",
+     "threat_ids": [
+      "T-03"
+     ],
+     "statement": "An external attacker could skim customers' card data via an injected or compromised script on the payment page, leading to mass card compromise, PCI DSS non-compliance and regulator action.",
+     "category": "APP.3",
+     "inherent_likelihood": 4,
+     "inherent_impact": 5,
+     "residual_likelihood": 4,
+     "residual_impact": 5,
+     "rationale": "Internet-facing page with no CSP or script integrity monitoring (likelihood 4). Card data exposure at scale is Severe (5). No in-place control reduces it.",
+     "citations": [
+      "E02",
+      "T-03",
+      "CC-024",
+      "A04"
+     ],
+     "treatment": "mitigate",
+     "proposed_controls": [
+      "CC-024",
+      "CC-022"
+     ]
+    },
+    {
+     "id": "R-02",
+     "threat_ids": [
+      "T-08",
+      "T-09"
+     ],
+     "statement": "A customer could obtain other customers' invoice details via prompt injection against the support assistant, leading to a notifiable breach of OFFICIAL: Sensitive data.",
+     "category": "AIM.1",
+     "inherent_likelihood": 4,
+     "inherent_impact": 4,
+     "residual_likelihood": 4,
+     "residual_impact": 4,
+     "rationale": "Any signed-in customer can attempt injection with public techniques (4). Scoping relies on a prompt instruction, which is partial and does not reduce likelihood. Exposure of customer data at scale is Major (4).",
+     "citations": [
+      "E06",
+      "E04",
+      "F08",
+      "T-08",
+      "T-09",
+      "CC-029",
+      "CC-010"
+     ],
+     "treatment": "mitigate",
+     "proposed_controls": [
+      "CC-010",
+      "CC-029",
+      "CC-028"
+     ]
+    },
+    {
+     "id": "R-03",
+     "threat_ids": [
+      "T-01",
+      "T-11"
+     ],
+     "statement": "An external attacker could take over customer accounts via phished or stuffed credentials because MFA is optional, leading to fraudulent payments and exposure of invoice data.",
+     "category": "IAM.1",
+     "inherent_likelihood": 4,
+     "inherent_impact": 3,
+     "residual_likelihood": 4,
+     "residual_impact": 3,
+     "rationale": "Credential stuffing is common and MFA is optional (4). Per-account exposure is limited (3).",
+     "citations": [
+      "E01",
+      "E07",
+      "T-01",
+      "T-11",
+      "CC-001"
+     ],
+     "treatment": "mitigate",
+     "proposed_controls": [
+      "CC-001",
+      "CC-016"
+     ]
+    },
+    {
+     "id": "R-04",
+     "threat_ids": [
+      "T-04"
+     ],
+     "statement": "A signed-in customer could read other customers' invoices via broken object-level authorisation in the Payments API, leading to exposure of OFFICIAL: Sensitive data.",
+     "category": "APP.2",
+     "inherent_likelihood": 3,
+     "inherent_impact": 4,
+     "residual_likelihood": 3,
+     "residual_impact": 4,
+     "rationale": "Needs an account plus simple ID tampering (3); authorisation design is not described. Impact Major (4).",
+     "citations": [
+      "E03",
+      "T-04",
+      "CC-003"
+     ],
+     "treatment": "mitigate",
+     "proposed_controls": [
+      "CC-003",
+      "CC-021"
+     ]
+    },
+    {
+     "id": "R-05",
+     "threat_ids": [
+      "T-06",
+      "T-10"
+     ],
+     "statement": "An attacker with control-plane access could delete the invoice database, its backups and the logs via the shared workload account, leading to loss of records and inability to investigate.",
+     "category": "INF.4",
+     "inherent_likelihood": 3,
+     "inherent_impact": 4,
+     "residual_likelihood": 3,
+     "residual_impact": 4,
+     "rationale": "Needs a privileged foothold (3); backups and logs share the blast radius. Impact Major (4).",
+     "citations": [
+      "E04",
+      "E08",
+      "T-06",
+      "T-10",
+      "CC-012",
+      "CC-015"
+     ],
+     "treatment": "mitigate",
+     "proposed_controls": [
+      "CC-012",
+      "CC-015",
+      "CC-004"
+     ]
+    },
+    {
+     "id": "R-06",
+     "threat_ids": [
+      "T-02",
+      "T-05",
+      "T-07"
+     ],
+     "statement": "An attacker could disrupt payments or intercept internal API traffic via request floods or a VPC foothold, leading to degraded service and limited data exposure.",
+     "category": "RES.1",
+     "inherent_likelihood": 3,
+     "inherent_impact": 3,
+     "residual_likelihood": 2,
+     "residual_impact": 3,
+     "rationale": "WAF and Secrets Manager are in place, lowering residual likelihood to 2. Internal HTTP remains; impact Moderate (3).",
+     "citations": [
+      "F02",
+      "F03",
+      "E03",
+      "T-02",
+      "T-05",
+      "T-07",
+      "CC-014",
+      "CC-007",
+      "CC-009"
+     ],
+     "treatment": "accept",
+     "proposed_controls": [
+      "CC-009"
+     ]
+    }
+   ]
+  }
+ ],
+ "ModelCritique": [
+  {
+   "issues": [
+    {
+     "severity": "major",
+     "where": "artefact payments-portal-design.md",
+     "issue": "The design contains a hidden comment telling automated reviewers to rate all risks Low. It was ignored; ask the author to remove it and confirm who added it."
+    },
+    {
+     "severity": "minor",
+     "where": "R-06",
+     "issue": "Grouping DoS, internal HTTP and key exposure into one risk hides different owners; consider splitting."
+    }
+   ]
+  }
+ ]
+}

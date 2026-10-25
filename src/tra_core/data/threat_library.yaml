@@ -1,0 +1,404 @@
+# Reusable threat library. The threat analyst retrieves candidates from here
+# through the threats MCP server, then adapts them to the design.
+#
+# applies_to: external_entity | process | data_store | data_flow | boundary_flow
+# tags let the server filter: cloud, identity, pipeline, web, api, data, ai, agent, payments,
+#   supplier, foci, crypto, pqc. non-adversarial marks threats with no attacker (no ATT&CK ID).
+# attack: MITRE ATT&CK Enterprise technique IDs (attack_version), for threats an
+#   attacker can carry out against any system. Validated against data/attack.yaml.
+# atlas: MITRE ATLAS technique IDs (atlas_version), for threats specific to AI
+#   components. Validated against data/atlas.yaml.
+# sar_ref: matching IDs from the SAR delivery lifecycle standard, where one exists.
+# risk_category: default risk taxonomy category (risk_taxonomy.yaml) for risks
+#   this threat drives. The risk assessor may change it when the design points elsewhere.
+
+meta:
+  version: "2026.10.2"
+  owner: security-architecture
+  attack_version: "20.0"
+  atlas_version: "5.6.0"
+
+threats:
+  # ---- identity and access
+  - id: TL-001
+    title: Credential phishing or reuse against user sign-in
+    stride: [S]
+    applies_to: [external_entity, boundary_flow]
+    tags: [identity, web]
+    attack: [T1566, T1078, T1110.004, T1621]
+    risk_category: IAM.1
+    description: An attacker signs in as a legitimate user with phished or reused credentials.
+    controls: [CC-001, CC-002, CC-016]
+  - id: TL-002
+    title: Long-lived workload credential leaked and reused
+    stride: [S, E]
+    applies_to: [process]
+    tags: [identity, cloud, pipeline]
+    attack: [T1552.001, T1078.004, T1555.006]
+    sar_ref: [BLD-T5]
+    risk_category: IAM.3
+    description: A static key or client secret is exposed in code, config or CI and used from outside the environment.
+    controls: [CC-005, CC-007, CC-016]
+  - id: TL-003
+    title: Token replay against a different service (confused deputy)
+    stride: [S, E]
+    applies_to: [boundary_flow, process]
+    tags: [identity, api, agent]
+    attack: [T1550.001, T1528]
+    risk_category: IAM.3
+    description: A bearer token issued for one service is accepted by another because audience is not checked.
+    controls: [CC-006]
+  - id: TL-004
+    title: Privilege escalation through over-broad role or pass-role permissions
+    stride: [E]
+    applies_to: [process]
+    tags: [identity, cloud]
+    attack: [T1098.003, T1548.005, T1078.004]
+    risk_category: IAM.2
+    description: A compromised workload or user uses excessive IAM permissions to gain wider control.
+    controls: [CC-003, CC-004]
+  - id: TL-005
+    title: Missing audit trail lets a user deny an action
+    stride: [R]
+    applies_to: [external_entity, process, data_store]
+    tags: [identity, data]
+    attack: [T1070]
+    risk_category: DET.4
+    description: Actions are not attributable to an identity, so a user can repudiate a change or approval.
+    controls: [CC-015, CC-032]
+
+  # ---- data protection
+  - id: TL-010
+    title: Sensitive data exposed from a misconfigured data store
+    stride: [I]
+    applies_to: [data_store]
+    tags: [data, cloud]
+    attack: [T1530, T1619]
+    risk_category: INF.1
+    description: Public or over-shared access on storage, snapshots or databases exposes classified data.
+    controls: [CC-003, CC-008, CC-010, CC-013]
+  - id: TL-011
+    title: Interception or tampering of data in transit
+    stride: [T, I]
+    applies_to: [data_flow, boundary_flow]
+    tags: [data, network]
+    attack: [T1557, T1040]
+    risk_category: CRY.4
+    description: Data crosses a network without strong TLS, allowing interception or modification.
+    controls: [CC-009, CC-013]
+  - id: TL-012
+    title: Unauthorised modification of stored records
+    stride: [T]
+    applies_to: [data_store]
+    tags: [data]
+    attack: [T1565.001]
+    risk_category: DAT.2
+    description: A user or workload with write access alters records without detection.
+    controls: [CC-003, CC-015, CC-023]
+  - id: TL-013
+    title: Data exfiltration through unrestricted egress
+    stride: [I]
+    applies_to: [process, boundary_flow]
+    tags: [data, cloud, network]
+    attack: [T1567, T1537, T1048]
+    risk_category: DAT.1
+    description: A compromised component sends data to an attacker-controlled destination.
+    controls: [CC-011, CC-013, CC-016]
+  - id: TL-014
+    title: Ransomware or destructive deletion including backups
+    stride: [D, T]
+    applies_to: [data_store]
+    tags: [data, resilience, cloud]
+    attack: [T1486, T1490, T1485]
+    risk_category: RES.2
+    description: An attacker with control-plane access encrypts or deletes data and its backups.
+    controls: [CC-012, CC-004, CC-016]
+  - id: TL-015
+    title: Aggregation raises the sensitivity of combined data
+    stride: [I]
+    applies_to: [data_store, process]
+    tags: [data]
+    attack: [T1213, T1119]
+    risk_category: DAT.3
+    description: Combining records creates a dataset more sensitive than its parts but labelled at the lower level.
+    controls: [CC-010]
+
+  # ---- application and API
+  - id: TL-020
+    title: Injection through unvalidated input
+    stride: [T, I, E]
+    applies_to: [process]
+    tags: [web, api]
+    attack: [T1190, T1059]
+    risk_category: APP.1
+    description: Untrusted input reaches an interpreter (SQL, shell, template) and changes its behaviour.
+    controls: [CC-025, CC-021, CC-014]
+  - id: TL-021
+    title: Broken object-level authorisation
+    stride: [I, E]
+    applies_to: [process, boundary_flow]
+    tags: [api, web]
+    attack: [T1190]
+    risk_category: APP.2
+    description: An authenticated caller reads or changes another tenant's or user's objects by changing an identifier.
+    controls: [CC-003, CC-021]
+  - id: TL-022
+    title: Denial of service through request flooding or expensive operations
+    stride: [D]
+    applies_to: [process, boundary_flow]
+    tags: [web, api]
+    attack: [T1499.003, T1498]
+    risk_category: RES.1
+    description: Volume or costly requests exhaust capacity or budget.
+    controls: [CC-014, CC-035]
+  - id: TL-023
+    title: Malicious script injected into a payment page
+    stride: [T, I]
+    applies_to: [process]
+    tags: [web, payments]
+    attack: [T1059.007, T1056.003, T1195.001]
+    risk_category: APP.3
+    description: A third-party or tampered script skims card data in the browser.
+    controls: [CC-024, CC-022]
+
+  # ---- cloud, delivery and supply chain
+  - id: TL-030
+    title: Poisoned pipeline execution
+    stride: [T, E]
+    applies_to: [process]
+    tags: [pipeline]
+    attack: [T1677, T1195.002]
+    sar_ref: [BLD-T1]
+    risk_category: SDL.3
+    description: Code from a pull request runs on a privileged runner and uses its deployment credentials.
+    controls: [CC-005, CC-021, CC-023]
+  - id: TL-031
+    title: Malicious or compromised dependency
+    stride: [T]
+    applies_to: [process]
+    tags: [pipeline, cloud]
+    attack: [T1195.001]
+    sar_ref: [BLD-T3]
+    risk_category: SUP.1
+    description: A dependency, base image or module carries malicious code into production.
+    controls: [CC-022]
+  - id: TL-032
+    title: Infrastructure state disclosure or tampering
+    stride: [I, T]
+    applies_to: [data_store]
+    tags: [pipeline, cloud]
+    attack: [T1552.001, T1578]
+    sar_ref: [IAC-T2]
+    risk_category: SDL.3
+    description: IaC state exposes secrets or is modified to change what gets deployed.
+    controls: [CC-003, CC-007, CC-008]
+  - id: TL-033
+    title: Configuration drift bypasses guardrails
+    stride: [T]
+    applies_to: [process, data_store]
+    tags: [cloud]
+    attack: [T1686.001, T1685, T1666]
+    sar_ref: [CFG-T1]
+    risk_category: INF.1
+    description: Manual changes leave resources in an unreviewed, weaker state.
+    controls: [CC-019, CC-023]
+  - id: TL-034
+    title: Unpatched component exploited
+    stride: [T, E]
+    applies_to: [process]
+    tags: [cloud, web]
+    attack: [T1190, T1068, T1203]
+    risk_category: INF.3
+    description: A known vulnerability in an application or operating system is exploited.
+    controls: [CC-017, CC-018]
+  - id: TL-035
+    title: Logging disabled or tampered by a compromised identity
+    stride: [R, T]
+    applies_to: [data_store, process]
+    tags: [cloud, detection]
+    attack: [T1685.002, T1070]
+    risk_category: DET.1
+    description: An attacker turns off or edits logs to hide activity.
+    controls: [CC-015, CC-004]
+
+  # ---- supply chain, foreign ownership, control or influence, and cryptography
+  - id: TL-036
+    title: Service provider or supplier compromise used to reach the system
+    stride: [S, T, I]
+    applies_to: [external_entity, process]
+    tags: [supplier, cloud, identity]
+    attack: [T1199, T1078.004]
+    risk_category: SUP.2
+    description: A breached cloud, SaaS or managed service provider uses its legitimate access, integration or support channel to reach the system or its data.
+    controls: [CC-037, CC-026, CC-004, CC-016]
+  - id: TL-037
+    title: Supplier concentration or failure with no tested exit
+    stride: [D]
+    applies_to: [external_entity, process, data_store]
+    tags: [supplier, resilience, non-adversarial]
+    risk_category: SUP.5
+    description: A critical function depends on one supplier that fails, withdraws the service or changes terms, and the system cannot move or recover in time.
+    controls: [CC-037, CC-035, CC-012]
+  - id: TL-038
+    title: Counterfeit or tampered hardware, firmware or appliance
+    stride: [T]
+    applies_to: [process]
+    tags: [supplier]
+    attack: [T1195.003]
+    risk_category: SUP.4
+    description: Equipment or firmware is altered or counterfeit before or during delivery and runs inside the trust boundary.
+    controls: [CC-037, CC-019]
+  - id: TL-039
+    title: Vendor directed by a foreign government (FOCI)
+    stride: [I, T, D]
+    applies_to: [external_entity, process, data_store]
+    tags: [supplier, foci, cloud]
+    attack: [T1199, T1195.002]
+    risk_category: FOC.2
+    description: >-
+      A vendor subject to foreign ownership, control or influence is compelled
+      by its home jurisdiction's laws or government to give access to data,
+      push a malicious update, or degrade the service, through its ownership,
+      privileged support access or update channel.
+    controls: [CC-038, CC-037, CC-034, CC-004]
+  - id: TL-040
+    title: Harvest now, decrypt later against quantum-vulnerable key exchange
+    stride: [I]
+    applies_to: [boundary_flow, data_flow]
+    tags: [crypto, pqc, network]
+    attack: [T1040, T1557]
+    risk_category: CRY.1
+    description: >-
+      Traffic protected by RSA, DH or ECDH key exchange is recorded now and
+      decrypted once a cryptographically relevant quantum computer exists,
+      exposing data whose confidentiality must outlast the early 2030s.
+    controls: [CC-039, CC-009]
+  - id: TL-041
+    title: Quantum-vulnerable signatures undermine long-lived trust
+    stride: [S, T]
+    applies_to: [process, boundary_flow]
+    tags: [crypto, pqc, pipeline]
+    attack: [T1553.002, T1606]
+    risk_category: CRY.2
+    description: Code signing, firmware, certificates or tokens that rely on RSA or ECC signatures and must stay trustworthy beyond 2030 become forgeable.
+    controls: [CC-039, CC-022]
+  - id: TL-042
+    title: Cryptography that cannot be inventoried or changed
+    stride: [I, T]
+    applies_to: [process, data_store]
+    tags: [crypto, pqc]
+    attack: [T1600]
+    risk_category: CRY.3
+    description: Algorithms are hard-coded or buried in products and libraries with no cryptographic inventory, so the system cannot move to ML-KEM and ML-DSA by 2030 or respond to a broken algorithm.
+    controls: [CC-039]
+  - id: TL-043
+    title: Design flaw shipped without threat modelling or security requirements
+    stride: [T, I, E]
+    applies_to: [process]
+    tags: [pipeline, web, api]
+    attack: [T1190]
+    risk_category: SDL.1
+    description: A security flaw in the design, such as a missing authorisation boundary or trust in client-side checks, reaches production because no threat model or security requirements were set.
+    controls: [CC-036, CC-021]
+
+  # ---- AI, agents and MCP (MITRE ATLAS)
+  - id: TL-050
+    title: Direct prompt injection by a user
+    stride: [T, E]
+    applies_to: [process]
+    tags: [ai, agent]
+    atlas: [AML.T0051.000]
+    risk_category: AIM.1
+    description: A user crafts input that overrides the model's instructions.
+    controls: [CC-029, CC-028]
+  - id: TL-051
+    title: Indirect prompt injection through retrieved or uploaded content
+    stride: [T, E]
+    applies_to: [process, data_flow, boundary_flow]
+    tags: [ai, agent]
+    atlas: [AML.T0051.001]
+    risk_category: AIM.1
+    description: Instructions hidden in a document, web page or tool result change the agent's behaviour.
+    controls: [CC-029, CC-028, CC-030]
+  - id: TL-052
+    title: Jailbreak bypasses model safety and policy
+    stride: [E]
+    applies_to: [process]
+    tags: [ai]
+    atlas: [AML.T0054]
+    risk_category: AIM.1
+    description: Adversarial prompting gets the model to produce prohibited content or actions.
+    controls: [CC-029, CC-033]
+  - id: TL-053
+    title: Excessive agency through tool misuse
+    stride: [E, T]
+    applies_to: [process]
+    tags: [ai, agent]
+    atlas: [AML.T0053]
+    risk_category: AIM.3
+    description: An agent is induced to call a tool with more privilege or impact than the task needs.
+    controls: [CC-030, CC-006]
+  - id: TL-054
+    title: Sensitive data leakage in model output
+    stride: [I]
+    applies_to: [process, data_flow]
+    tags: [ai]
+    atlas: [AML.T0057]
+    risk_category: AIM.2
+    description: The model reveals data from its context, memory or retrieval to a user who should not see it.
+    controls: [CC-010, CC-028]
+  - id: TL-055
+    title: Data exfiltration through the inference API
+    stride: [I]
+    applies_to: [boundary_flow]
+    tags: [ai]
+    atlas: [AML.T0024]
+    risk_category: AIM.2
+    description: Prompts carrying classified data leave the jurisdiction or are retained by the provider.
+    controls: [CC-034, CC-013]
+  - id: TL-056
+    title: Poisoned retrieval index, memory or training data
+    stride: [T]
+    applies_to: [data_store]
+    tags: [ai]
+    atlas: [AML.T0020]
+    risk_category: AIM.4
+    description: An attacker inserts content that biases future outputs.
+    controls: [CC-010, CC-012, CC-033]
+  - id: TL-057
+    title: Compromised model, MCP server or AI supply chain component
+    stride: [T]
+    applies_to: [process]
+    tags: [ai, agent, pipeline]
+    attack: [T1195.001, T1195.002]
+    atlas: [AML.T0010]
+    risk_category: SUP.1
+    description: A tampered model artefact, plugin or MCP server runs inside the trust boundary.
+    controls: [CC-031, CC-022]
+  - id: TL-058
+    title: System prompt or configuration extraction
+    stride: [I]
+    applies_to: [process]
+    tags: [ai]
+    atlas: [AML.T0056]
+    risk_category: AIM.2
+    description: A user extracts the system prompt or tool configuration and uses it to plan attacks.
+    controls: [CC-029]
+  - id: TL-059
+    title: Model denial of service or cost exhaustion
+    stride: [D]
+    applies_to: [process]
+    tags: [ai]
+    attack: [T1496.004]
+    atlas: [AML.T0029]
+    risk_category: RES.1
+    description: Long or recursive requests exhaust quota or budget.
+    controls: [CC-035, CC-014]
+  - id: TL-060
+    title: Over-reliance on unreviewed model output
+    stride: [R, T]
+    applies_to: [process]
+    tags: [ai, agent]
+    risk_category: AIM.5
+    description: People act on model output without review, so model errors become decisions.
+    controls: [CC-028, CC-033]

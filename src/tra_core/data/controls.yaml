@@ -1,0 +1,266 @@
+# Common control set and framework crosswalk.
+#
+# One common control (CC-nnn) maps to up to five framework references. Agents
+# may only cite IDs that exist in this file; the controls MCP server enforces it.
+#
+# Framework versions:
+#   iso27001:     ISO/IEC 27001:2022 Annex A
+#   e8:           ASD Essential Eight maturity model, target Maturity Level 2
+#   asd_essentials: successor ASD baseline, expected around Q2 2027 (empty until published)
+#   ism:          ASD ISM control IDs from the OFFICIAL: Sensitive baseline of the
+#                 release in meta.frameworks.ism. Validated against data/ism.yaml,
+#                 which scripts/refresh_frameworks.py regenerates from ASD's OSCAL
+#                 release. Re-check the mapping at every quarterly ISM update.
+#   pci_dss:      PCI DSS v4.0.1 requirements
+#   pspf:         PSPF policies and directions, where one sets a specific requirement
+#
+# This is a starter crosswalk: have the control owner verify each mapping
+# before TRAs rely on it. Replace this file with the corporate control catalogue when it is available.
+
+meta:
+  version: "2026.10.2"
+  owner: security-architecture
+  review_due: "2027-01-31"
+  e8_target_maturity: 2
+  frameworks:
+    iso27001: "ISO/IEC 27001:2022"
+    e8: "ASD Essential Eight (ML2 target)"
+    asd_essentials: "ASD Essentials (expected Q2 2027)"
+    ism: "ASD ISM September 2026 (2026.09.4), OFFICIAL: Sensitive baseline"
+    pci_dss: "PCI DSS v4.0.1"
+    pspf: "Protective Security Policy Framework, with directions in force"
+
+controls:
+  - id: CC-001
+    title: Phishing-resistant multi-factor authentication for users
+    domain: identity
+    iso27001: ["8.5", "5.17"]
+    e8: ["Multi-factor authentication"]
+    ism: ["ISM-1504", "ISM-1679", "ISM-1173", "ISM-0974", "ISM-1401", "ISM-1872", "ISM-1682", "ISM-2011", "ISM-1683", "ISM-1681", "ISM-1873"]
+    pci_dss: ["8.4.2", "8.5"]
+  - id: CC-002
+    title: Centralised identity provider with joiner, mover and leaver automation
+    domain: identity
+    iso27001: ["5.16", "5.18"]
+    ism: ["ISM-0405", "ISM-0414", "ISM-0430", "ISM-1404", "ISM-1591", "ISM-2145"]
+    pci_dss: ["7.2", "8.2"]
+  - id: CC-003
+    title: Least-privilege access with periodic review
+    domain: identity
+    iso27001: ["5.15", "5.18", "8.3"]
+    e8: ["Restrict administrative privileges"]
+    ism: ["ISM-1852", "ISM-1508", "ISM-1507", "ISM-1647", "ISM-1648", "ISM-1255"]
+    pci_dss: ["7.2", "7.3"]
+  - id: CC-004
+    title: Privileged access through just-in-time elevation and separate admin identities
+    domain: identity
+    iso27001: ["8.2"]
+    e8: ["Restrict administrative privileges"]
+    ism: ["ISM-0445", "ISM-1175", "ISM-1649", "ISM-1883", "ISM-1509", "ISM-1650"]
+    pci_dss: ["7.2", "8.2"]
+  - id: CC-005
+    title: Workload identity federation; no long-lived static credentials
+    domain: identity
+    iso27001: ["5.17", "8.5"]
+    ism: ["ISM-2141", "ISM-2143", "ISM-2133"]
+    pci_dss: ["8.6"]
+  - id: CC-006
+    title: Audience-bound, short-lived tokens with token exchange between services
+    domain: identity
+    iso27001: ["8.5", "5.15"]
+    ism: ["ISM-2147", "ISM-2148", "ISM-1817", "ISM-1818", "ISM-2157"]
+    pci_dss: ["8.3"]
+  - id: CC-007
+    title: Secrets held in a managed secrets store with rotation
+    domain: data
+    iso27001: ["5.17", "8.24"]
+    ism: ["ISM-2142", "ISM-2144", "ISM-2146", "ISM-2030", "ISM-1875"]
+    pci_dss: ["3.6", "8.6"]
+  - id: CC-008
+    title: Encryption at rest with customer-managed keys
+    domain: data
+    iso27001: ["8.24"]
+    ism: ["ISM-1080", "ISM-1769", "ISM-0507"]
+    pci_dss: ["3.5.1", "3.6"]
+  - id: CC-009
+    title: Latest TLS version for all data in transit; TLS 1.2 only by documented exception
+    domain: data
+    iso27001: ["8.24", "5.14"]
+    ism: ["ISM-0469", "ISM-1781", "ISM-1139", "ISM-1369", "ISM-1372", "ISM-1453", "ISM-1552"]
+    pci_dss: ["4.2.1"]
+  - id: CC-010
+    title: Data classification labelling and attribute-based access on labels
+    domain: data
+    iso27001: ["5.12", "5.13", "8.3"]
+    ism: ["ISM-0393", "ISM-1268", "ISM-0434"]
+    pci_dss: ["7.2"]
+  - id: CC-011
+    title: Data loss prevention and egress control
+    domain: data
+    iso27001: ["8.12", "8.20"]
+    ism: ["ISM-0631", "ISM-1192", "ISM-0260", "ISM-1237", "ISM-0958", "ISM-1586", "ISM-0663"]
+    pci_dss: ["1.4"]
+  - id: CC-012
+    title: Backups that are isolated, immutable and restore-tested
+    domain: resilience
+    iso27001: ["8.13"]
+    e8: ["Regular backups"]
+    ism: ["ISM-1511", "ISM-1810", "ISM-1811", "ISM-1515", "ISM-1705", "ISM-1707", "ISM-2151", "ISM-2152", "ISM-1547", "ISM-1548"]
+  - id: CC-013
+    title: Network segmentation and private connectivity to managed services
+    domain: network
+    iso27001: ["8.20", "8.22"]
+    ism: ["ISM-1181", "ISM-1577", "ISM-0385", "ISM-1479", "ISM-1182", "ISM-0628"]
+    pci_dss: ["1.2", "1.3", "1.4"]
+  - id: CC-014
+    title: Web application firewall and rate limiting at the edge
+    domain: network
+    iso27001: ["8.20", "8.21"]
+    ism: ["ISM-1862", "ISM-1439", "ISM-1431", "ISM-1436", "ISM-1438"]
+    pci_dss: ["6.4.2"]
+  - id: CC-015
+    title: Security event logging centralised to a tamper-evident store
+    domain: detection
+    iso27001: ["8.15"]
+    ism: ["ISM-1405", "ISM-1983", "ISM-1984", "ISM-1985", "ISM-1815", "ISM-0988", "ISM-0585", "ISM-1988", "ISM-1911", "ISM-1910"]
+    pci_dss: ["10.2.1", "10.3", "10.5"]
+  - id: CC-016
+    title: Monitoring and alerting on security events
+    domain: detection
+    iso27001: ["8.16"]
+    ism: ["ISM-0580", "ISM-1906", "ISM-1228", "ISM-1986", "ISM-2116", "ISM-2153", "ISM-1028"]
+    pci_dss: ["10.4", "11.5"]
+  - id: CC-017
+    title: Vulnerability management and timely patching of applications
+    domain: hardening
+    iso27001: ["8.8"]
+    e8: ["Patch applications"]
+    ism: ["ISM-1143", "ISM-0298", "ISM-1876", "ISM-1690", "ISM-1691", "ISM-1693", "ISM-1698", "ISM-1699", "ISM-1700", "ISM-1704", "ISM-1905", "ISM-1807", "ISM-1808"]
+    pci_dss: ["6.3.3", "11.3"]
+  - id: CC-018
+    title: Timely patching of operating systems and platforms
+    domain: hardening
+    iso27001: ["8.8"]
+    e8: ["Patch operating systems"]
+    ism: ["ISM-1877", "ISM-1694", "ISM-1695", "ISM-1701", "ISM-1702", "ISM-1501", "ISM-1809"]
+    pci_dss: ["6.3.3"]
+  - id: CC-019
+    title: Hardened configuration baselines with drift detection
+    domain: hardening
+    iso27001: ["8.9"]
+    e8: ["User application hardening", "Configure Microsoft Office macro settings"]
+    ism: ["ISM-1914", "ISM-1409", "ISM-0380", "ISM-0383", "ISM-1916", "ISM-1246", "ISM-1247", "ISM-1260", "ISM-1249", "ISM-0912", "ISM-1406"]
+    pci_dss: ["2.2"]
+  - id: CC-020
+    title: Application control on endpoints and servers
+    domain: hardening
+    iso27001: ["8.19", "8.7"]
+    e8: ["Application control"]
+    ism: ["ISM-0843", "ISM-1490", "ISM-1870", "ISM-1871", "ISM-1657", "ISM-0955", "ISM-1544", "ISM-1582", "ISM-1660"]
+    pci_dss: ["5.2"]
+  - id: CC-021
+    title: Secure development lifecycle with code review and security testing
+    domain: delivery
+    iso27001: ["8.25", "8.28", "8.29"]
+    ism: ["ISM-2120", "ISM-0401", "ISM-1238", "ISM-2039", "ISM-2040", "ISM-1780", "ISM-2061", "ISM-2060", "ISM-2062", "ISM-0402", "ISM-2034"]
+    pci_dss: ["6.2", "6.2.4"]
+  - id: CC-022
+    title: Software supply chain integrity (pinned, signed and scanned dependencies)
+    domain: delivery
+    iso27001: ["5.21", "8.28"]
+    ism: ["ISM-2023", "ISM-1816", "ISM-2026", "ISM-2027", "ISM-2028", "ISM-2029", "ISM-2154", "ISM-1797", "ISM-1730", "ISM-2054", "ISM-2056", "ISM-2032"]
+    pci_dss: ["6.3.2"]
+  - id: CC-023
+    title: Change management with segregation of environments
+    domain: delivery
+    iso27001: ["8.32", "8.31"]
+    ism: ["ISM-0912", "ISM-0400", "ISM-1419", "ISM-1420"]
+    pci_dss: ["6.5.1", "6.5.3"]
+  - id: CC-024
+    title: Payment page script integrity and tamper detection
+    domain: application
+    iso27001: ["8.26"]
+    ism: ["ISM-1424", "ISM-1850"]
+    pci_dss: ["6.4.3", "11.6.1"]
+  - id: CC-025
+    title: Input validation and output encoding
+    domain: application
+    iso27001: ["8.26", "8.28"]
+    ism: ["ISM-1240", "ISM-2016", "ISM-2057", "ISM-2058", "ISM-2059", "ISM-1241", "ISM-1276", "ISM-1275", "ISM-1851"]
+    pci_dss: ["6.2.4"]
+  - id: CC-026
+    title: Cloud service due diligence and shared responsibility record
+    domain: supplier
+    iso27001: ["5.23", "5.19", "5.20"]
+    ism: ["ISM-1637", "ISM-1638", "ISM-1570", "ISM-1569", "ISM-1452", "ISM-0072", "ISM-1572", "ISM-1573", "ISM-0141", "ISM-1395"]
+    pci_dss: ["12.8"]
+  - id: CC-027
+    title: Incident response plan, exercised, with evidence handling
+    domain: response
+    iso27001: ["5.24", "5.25", "5.26", "5.27", "5.28"]
+    ism: ["ISM-0576", "ISM-1784", "ISM-0043", "ISM-1819", "ISM-0123", "ISM-0140", "ISM-0138", "ISM-0125"]
+    pci_dss: ["12.10.1"]
+  - id: CC-028
+    title: Model output treated as untrusted and validated against a schema
+    domain: ai
+    iso27001: ["8.26", "8.27"]
+    ism: ["ISM-2094", "ISM-2058"]
+  - id: CC-029
+    title: Untrusted content isolation and prompt-injection guardrails
+    domain: ai
+    iso27001: ["8.26", "8.27"]
+    ism: ["ISM-2158", "ISM-1924", "ISM-2112"]
+  - id: CC-030
+    title: Agent tools least-privilege, read-only by default, human confirmation for irreversible actions
+    domain: ai
+    iso27001: ["8.2", "8.27"]
+    ism: ["ISM-2156", "ISM-2157", "ISM-2113", "ISM-2092", "ISM-2093"]
+  - id: CC-031
+    title: Model and MCP server allow-list, version pinning and provenance checks
+    domain: ai
+    iso27001: ["5.21", "8.19"]
+    ism: ["ISM-2086", "ISM-2072", "ISM-2029", "ISM-2154", "ISM-2134", "ISM-2135"]
+  - id: CC-032
+    title: Model invocation logging with identity-linked traces
+    domain: ai
+    iso27001: ["8.15", "8.16"]
+    ism: ["ISM-2159", "ISM-2133", "ISM-1911"]
+  - id: CC-033
+    title: Evaluation suite with regression gate before model or prompt changes
+    domain: ai
+    iso27001: ["8.29", "8.32"]
+    ism: ["ISM-2114", "ISM-2084", "ISM-2032", "ISM-2062"]
+  - id: CC-034
+    title: Model inference kept in Australian regions with no provider training on data
+    domain: ai
+    iso27001: ["5.23", "5.34"]
+    ism: ["ISM-1572", "ISM-2103", "ISM-1570"]
+  - id: CC-035
+    title: Availability design with redundancy and capacity limits
+    domain: resilience
+    iso27001: ["8.14", "8.6"]
+    ism: ["ISM-1579", "ISM-1580", "ISM-1581", "ISM-1431", "ISM-2090", "ISM-2091"]
+  - id: CC-036
+    title: Threat and risk assessment and authorisation for each system
+    domain: governance
+    iso27001: ["5.8"]
+    ism: ["ISM-1203", "ISM-1633", "ISM-1634", "ISM-1636", "ISM-0027", "ISM-0041"]
+    pci_dss: ["12.3.1"]
+  - id: CC-037
+    title: Cyber supply chain risk assessment, approved supplier list and integrity checks on acceptance
+    domain: supplier
+    iso27001: ["5.19", "5.20", "5.21", "5.22"]
+    ism: ["ISM-1631", "ISM-1452", "ISM-1567", "ISM-1568", "ISM-1632", "ISM-1882", "ISM-1785", "ISM-1786", "ISM-1787", "ISM-1788", "ISM-1790", "ISM-1791", "ISM-1792"]
+    pci_dss: ["12.8.1", "12.8.2", "12.8.4"]
+  - id: CC-038
+    title: Foreign ownership, control or influence (FOCI) risk assessment for technology vendors and service providers
+    domain: supplier
+    iso27001: ["5.19", "5.20", "5.23"]
+    ism: ["ISM-1452", "ISM-1567", "ISM-1572", "ISM-1451"]
+    pspf: ["Direction 001-2024 (FOCI risk in technology assets)"]
+  - id: CC-039
+    title: Post-quantum cryptography transition plan with a cryptographic inventory
+    domain: data
+    iso27001: ["8.24"]
+    ism: ["ISM-2073", "ISM-1917", "ISM-1995", "ISM-1991", "ISM-1990", "ISM-1996"]
+    pci_dss: ["12.3.3"]

@@ -1,0 +1,34 @@
+{
+  "app": "python3 app.py",
+  "context": {
+    "idp_discovery_url": "https://login.microsoftonline.com/<tenant-id>/v2.0/.well-known/openid-configuration",
+    "idp_issuer": "https://login.microsoftonline.com/<tenant-id>/v2.0",
+    "idp_jwks_url": "https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys",
+    "entra_tenant_id": "<tenant-id>",
+    "token_exchange": "entra-obo",
+    "audiences": {
+      "orchestrator": "api://tra-orchestrator",
+      "intake": "api://tra-intake",
+      "system_modeller": "api://tra-system-modeller",
+      "threat_analyst": "api://tra-threat-analyst",
+      "control_mapper": "api://tra-control-mapper",
+      "risk_assessor": "api://tra-risk-assessor",
+      "quality_critic": "api://tra-quality-critic",
+      "mcp-reference": "api://tra-mcp-reference",
+      "mcp-artefacts": "api://tra-mcp-artefacts"
+    },
+    "client_ids": {
+      "orchestrator": "<app-id>",
+      "intake": "<app-id>",
+      "system_modeller": "<app-id>",
+      "threat_analyst": "<app-id>",
+      "control_mapper": "<app-id>",
+      "risk_assessor": "<app-id>",
+      "quality_critic": "<app-id>",
+      "mcp-reference": "<app-id>",
+      "mcp-artefacts": "<app-id>"
+    },
+    "artefact_sources": {},
+    "audit_retention_days": 2557
+  }
+}

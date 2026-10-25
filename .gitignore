@@ -1,0 +1,10 @@
+.tra/
+out/
+.venv/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+infra/aws/cdk.out/
+infra/aws/.venv/
+infra/azure/agents.json
+infra/azure/*.json.bak

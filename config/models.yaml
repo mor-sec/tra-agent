@@ -1,0 +1,25 @@
+# Which model each agent uses. Inference must stay in Australia.
+#
+# Bedrock: use AU geographic inference profiles (routes only between Sydney and
+# Melbourne), never global. Confirm exact IDs with:
+#   aws bedrock list-inference-profiles --region ap-southeast-2
+# Azure: regional deployments in Australia East only. Claude on Foundry is
+# Global or US Data Zone only, so it is not used for classified data.
+
+providers:
+  bedrock:
+    region: ap-southeast-2
+  azure:
+    endpoint: https://<your-foundry-resource>.openai.azure.com
+    api_version: "2024-10-21"
+
+agents:
+  default:            {provider: bedrock, model: au.anthropic.claude-sonnet-5-5}
+  intake:             {provider: bedrock, model: au.anthropic.claude-haiku-5-5}
+  system_modeller:    {provider: bedrock, model: au.anthropic.claude-sonnet-5-5}
+  threat_analyst:     {provider: bedrock, model: au.anthropic.claude-opus-5-5}
+  control_mapper:     {provider: bedrock, model: au.anthropic.claude-sonnet-5-5}
+  risk_assessor:      {provider: bedrock, model: au.anthropic.claude-opus-5-5}
+  quality_critic:     {provider: bedrock, model: au.anthropic.claude-sonnet-5-5}
+  # Example: run the critic on a GPT deployment for model diversity.
+  # quality_critic:   {provider: azure, model: <gpt-deployment-name>}

@@ -1,0 +1,35 @@
+{
+  "project_endpoint": "https://<account>.services.ai.azure.com/api/projects/tra-project",
+  "tenant_id": "<tenant-id>",
+  "idp_issuer": "https://login.microsoftonline.com/<tenant-id>/v2.0",
+  "idp_jwks_url": "https://login.microsoftonline.com/<tenant-id>/discovery/v2.0/keys",
+  "state_uri": "https://<state-account>.blob.core.windows.net/tra",
+  "audit_uri": "https://<audit-account>.blob.core.windows.net/audit",
+  "mcp": {
+    "reference": {"endpoint": "https://tra-mcp-reference.<env>.australiaeast.azurecontainerapps.io/mcp", "audience": "api://tra-mcp-reference"},
+    "artefacts": {"endpoint": "https://tra-mcp-artefacts.<env>.australiaeast.azurecontainerapps.io/mcp", "audience": "api://tra-mcp-artefacts"}
+  },
+  "bedrock_role_arn": "arn:aws:iam::<account>:role/tra-foundry-bedrock",
+  "audiences": {
+    "orchestrator": "api://tra-orchestrator",
+    "intake": "api://tra-intake",
+    "system_modeller": "api://tra-system-modeller",
+    "threat_analyst": "api://tra-threat-analyst",
+    "control_mapper": "api://tra-control-mapper",
+    "risk_assessor": "api://tra-risk-assessor",
+    "quality_critic": "api://tra-quality-critic"
+  },
+  "client_ids": {
+    "orchestrator": "<app-id>",
+    "intake": "<app-id>",
+    "system_modeller": "<app-id>",
+    "threat_analyst": "<app-id>",
+    "control_mapper": "<app-id>",
+    "risk_assessor": "<app-id>",
+    "quality_critic": "<app-id>"
+  },
+  "sizes": {
+    "threat_analyst": {"cpu": "2", "memory": "4Gi"},
+    "risk_assessor": {"cpu": "2", "memory": "4Gi"}
+  }
+}

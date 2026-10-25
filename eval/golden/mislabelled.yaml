@@ -1,0 +1,10 @@
+id: mislabelled
+title: Records migration
+work_type: design_change
+artefacts:
+  - [git, mislabelled-design.md]
+notes: >
+  Labelled OFFICIAL but marked PROTECTED in the body. Must be refused before
+  any text reaches a model; PROTECTED is a future state for this deployment.
+expect:
+  refused: true

@@ -1,0 +1,31 @@
+id: hr-leave
+title: Team leave calendar
+work_type: new_system
+artefacts:
+  - [git, hr-leave-calendar.md]
+notes: >
+  A low-risk internal system. The case checks the agent does not over-tier or
+  over-rate a simple design: an OFFICIAL artefact gives an OFFICIAL: Sensitive
+  TRA (the TRA floor), Tier 2, and no risk above Medium is expected. The
+  threats it must still find are the access-scoping and sync-integrity ones.
+expect:
+  classification: OFFICIAL_SENSITIVE   # TRA floor, though the artefact is OFFICIAL
+  tier: 2
+  elements:
+    - calendar web app|web app
+    - calendar database|database|sql
+    - sync function|sync
+    - hr system
+  threats:
+    - element: calendar web app|web app
+      stride: [I, E]
+      library: [TL-021, TL-004]
+      why: team scoping is enforced by the app; a manager could request another team
+    - element: sync function|sync|hr system to|export
+      stride: [S, T]
+      why: a forged or altered export changes who sees whom
+    - element: calendar database|database|sql
+      stride: [I, T]
+      why: aggregated staff absence data is still personal information
+  risks: []
+  critique: []
