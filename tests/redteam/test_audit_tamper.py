@@ -5,6 +5,7 @@ ISO 27001 A.8.15 (logging); ISM logging controls; PCI DSS 10.3.
 
 import pytest
 
+from tests.conftest import PAYMENTS_TIER
 from tra_core.audit import AuditLog, MemoryAuditSink, verify
 from tra_core.identity import Principal, Role
 from tra_core.schemas import Gate
@@ -14,7 +15,7 @@ from tra_core.schemas import Gate
 async def trail(rig, alice):
     r = rig()
     tra = await r.create(alice)
-    await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok")
+    await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
     events = r.audit.sink.read_all()
     assert verify(events) == [] and len(events) > 10
     return events

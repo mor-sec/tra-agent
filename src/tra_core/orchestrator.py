@@ -13,6 +13,7 @@ from typing import Any, Protocol
 from tra_core.agents.base import AgentDeps, SpecialistRequest, prompt_version
 from tra_core.agents.specialists import NEEDS_REFERENCE, SPECIALISTS
 from tra_core.audit import AuditLog
+from tra_core.checks import automated_checks
 from tra_core.classification import check_accepted, derived_label
 from tra_core.gates import GateOutcome, GateService
 from tra_core.identity import Principal, PrincipalKind, Role
@@ -32,6 +33,7 @@ from tra_core.schemas import (
     Stage,
     SystemModel,
     Threat,
+    TierFactors,
     WorkType,
 )
 from tra_core.store import TraStore
@@ -109,7 +111,7 @@ class Orchestrator:
         self.audit = audit
         self.reference = reference
         self.register = register
-        self.gates = GateService(audit)
+        self.gates = GateService(audit, lambda tra: automated_checks(tra, reference))
         self.workload = Principal.workload("agent:orchestrator")
 
     # ------------------------------------------------------------ helpers
@@ -169,12 +171,14 @@ class Orchestrator:
         return await self.advance(tra.id, user)
 
     async def advance(self, tra_id: str, user: Principal, notes: list[str] | None = None) -> TRA:
-        """Run stages until the TRA reaches a gate (or the final stage)."""
+        """Run stages until the TRA reaches a gate (or the final stage).
+
+        Reviewer notes go to every stage up to that gate, so each specialist the return reruns sees them.
+        """
         tra = self.store.load(tra_id)
         notes = notes or []
         while tra.awaiting_gate is None:
             await self._run_stage(tra, user, notes)
-            notes = []
             gate = gate_after(tra.stage)
             if gate is not None:
                 tra.awaiting_gate = gate
@@ -192,9 +196,12 @@ class Orchestrator:
         self.store.save(tra)
         self._log(tra, "stage_changed", self.workload.for_user(user), **{"from": old.value, "to": stage.value})
 
-    async def decide(self, tra_id: str, gate: Gate, user: Principal, decision: str, rationale: str) -> tuple[TRA, GateOutcome]:
+    async def decide(
+        self, tra_id: str, gate: Gate, user: Principal, decision: str, rationale: str,
+        tier_factors: TierFactors | None = None,
+    ) -> tuple[TRA, GateOutcome]:
         tra = self.store.load(tra_id)
-        outcome = self.gates.decide(tra, gate, user, decision, rationale)
+        outcome = self.gates.decide(tra, gate, user, decision, rationale, tier_factors)
         if outcome.returned:
             tra.awaiting_gate = None
             tra.version += 1
@@ -203,9 +210,21 @@ class Orchestrator:
         if not outcome.passed:
             self.store.save(tra)
             return tra, outcome
+        if tier_factors is not None and tra.intake is not None:
+            tra.intake = tra.intake.model_copy(update=tier_factors.model_dump())
+            self._set_tier(tra)
         tra.awaiting_gate = None
         self._move(tra, next_stage(tra.stage), user)
         return await self.advance(tra.id, user), outcome
+
+    def _set_tier(self, tra: TRA) -> None:
+        assert tra.intake is not None
+        tra.tier = tra.intake.tier = compute_tier(
+            classification_rank=tra.classification.rank,
+            internet_facing=tra.intake.internet_facing,
+            handles_cardholder_data=tra.intake.handles_cardholder_data,
+            shared_platform=tra.intake.shared_platform,
+        )
 
     # ------------------------------------------------------------ stages
 
@@ -217,13 +236,8 @@ class Orchestrator:
             }, notes)
             intake = IntakeRecord.model_validate(out)
             tra.classification = derived_label([tra.classification, intake.proposed_classification])
-            intake.tier = compute_tier(
-                classification_rank=tra.classification.rank,
-                internet_facing=intake.internet_facing,
-                handles_cardholder_data=intake.handles_cardholder_data,
-                shared_platform=intake.shared_platform,
-            )
-            tra.intake, tra.tier, tra.work_type = intake, intake.tier, intake.work_type
+            tra.intake, tra.work_type = intake, intake.work_type
+            self._set_tier(tra)  # provisional: G1 replaces the factors with the practitioner's
         elif tra.stage is Stage.CONTEXT:
             out = await self._call(tra, "system_modeller", user, {
                 "intake": tra.intake.model_dump(mode="json") if tra.intake else {}, "artefacts": artefacts,

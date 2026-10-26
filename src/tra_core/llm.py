@@ -82,6 +82,9 @@ class BedrockClient:
                 "toolChoice": {"tool": {"name": schema_name}},
             },
         )
+        if resp.get("stopReason") == "max_tokens":
+            # A truncated tool input fails validation the same way on every retry.
+            raise ModelError(f"{self.model_id} hit maxTokens={self.max_tokens}; the {schema_name} answer is truncated")
         for block in resp["output"]["message"]["content"]:
             if "toolUse" in block:
                 return json.dumps(block["toolUse"]["input"])

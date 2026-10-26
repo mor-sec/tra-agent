@@ -6,7 +6,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-from tra_core.agents.base import Specialist, SpecialistRequest, artefact_block, as_json
+from tra_core.agents.base import Specialist, SpecialistRequest, artefact_block, as_json, derived_block
 from tra_core.checks import automated_checks, check_controls, check_risks, check_threats
 from tra_core.reference import Reference
 from tra_core.risk import IMPACT_SCALE_AUD, LIKELIHOOD_SCALE
@@ -63,7 +63,7 @@ class SystemModeller(Specialist[SystemModel]):
 
     async def build_user_message(self, request: SpecialistRequest) -> str:
         p = request.payload
-        return f"Intake record:\n{as_json(p['intake'])}\n\n{_artefact_section(p)}"
+        return f"Intake record:\n{derived_block('intake', p['intake'])}\n\n{_artefact_section(p)}"
 
     async def check(self, output: SystemModel, request: SpecialistRequest) -> list[str]:
         errors = []
@@ -125,7 +125,7 @@ class ThreatAnalyst(Specialist[ThreatList]):
             + f"): {t['description']}"
             for t in candidates.values()
         )
-        return f"System model:\n{as_json(model)}\n\nElements and applicable STRIDE:\n{table}\n\nCandidate library threats:\n{library}"
+        return f"System model:\n{derived_block('system_model', model)}\n\nElements and applicable STRIDE:\n{table}\n\nCandidate library threats:\n{library}"
 
     async def check(self, output: ThreatList, request: SpecialistRequest) -> list[str]:
         model = SystemModel.model_validate(request.payload["system_model"])
@@ -154,7 +154,7 @@ class ControlMapper(Specialist[ControlList]):
         catalogue = await self.deps.tools.call("controls_list", {})
         lines = "\n".join(f"- {c['id']} ({c['domain']}): {c['title']}" for c in catalogue["controls"])
         return (
-            f"Threats:\n{as_json(p['threats'])}\n\nControl catalogue (version {catalogue['catalogue_version']}):\n"
+            f"Threats:\n{derived_block('threats', p['threats'])}\n\nControl catalogue (version {catalogue['catalogue_version']}):\n"
             f"{lines}\n\n{_artefact_section(p)}"
         )
 
@@ -202,8 +202,10 @@ class RiskAssessor(Specialist[RiskList]):
         return (
             f"{_scales()}\n\nRisk taxonomy (version {taxonomy.version}):\n{categories}\n\n"
             f"Default categories of library threats: {as_json(defaults)}\n\n"
-            f"Intake:\n{as_json(p['intake'])}\n\nSystem model:\n{as_json(p['system_model'])}\n\n"
-            f"Threats:\n{as_json(p['threats'])}\n\nControl assessments:\n{as_json(p['controls'])}"
+            f"Intake:\n{derived_block('intake', p['intake'])}\n\n"
+            f"System model:\n{derived_block('system_model', p['system_model'])}\n\n"
+            f"Threats:\n{derived_block('threats', p['threats'])}\n\n"
+            f"Control assessments:\n{derived_block('controls', p['controls'])}"
         )
 
     async def check(self, output: RiskList, request: SpecialistRequest) -> list[str]:
@@ -237,8 +239,8 @@ class QualityCritic(Specialist[ModelCritique]):
         tra = TRA.model_validate(request.payload["tra"])
         checks = automated_checks(tra, self.reference)
         listed = "\n".join(f"- [{i.severity}] {i.where}: {i.issue}" for i in checks) or "- none"
-        body = tra.model_dump_json(include={"intake", "system_model", "threats", "controls", "risks"}, indent=1)
-        return f"Automated check results:\n{listed}\n\nDraft TRA:\n{body}"
+        body = tra.model_dump(mode="json", include={"intake", "system_model", "threats", "controls", "risks"})
+        return f"Automated check results:\n{listed}\n\nDraft TRA:\n{derived_block('draft_tra', body)}"
 
     async def handle(self, request: SpecialistRequest) -> dict[str, Any]:
         tra = TRA.model_validate(request.payload["tra"])

@@ -28,6 +28,7 @@ from tra_core.identity import Principal, Role
 from tra_core.llm import ModelRouter, ReplayModelClient
 from tra_core.orchestrator import LocalInvoker, Orchestrator
 from tra_core.reference import Reference
+from tra_core.schemas import TierFactors
 from tra_core.store import FileTraStore
 from tra_core.tools import LocalToolClient, ToolError, ToolSet
 from tra_eval.golden import GoldenCase, Score, Thresholds, load_cases, score
@@ -48,7 +49,10 @@ async def run_case(case: GoldenCase, router: ModelRouter, artefact_root: Path, w
     except (ArtefactError, ClassificationError, ToolError) as exc:
         return Score(case=case.id, refused=True, error=None if case.expect.refused else str(exc))
     try:
-        tra, _ = await orch.decide(tra.id, tra.awaiting_gate, EVAL_PRINCIPAL, "approve", "automated evaluation run")  # type: ignore[arg-type]
+        # The eval scores the model, so it confirms the intake's proposed tier factors unchanged.
+        assert tra.intake is not None
+        factors = TierFactors.model_validate(tra.intake.model_dump(include=set(TierFactors.model_fields)))
+        tra, _ = await orch.decide(tra.id, tra.awaiting_gate, EVAL_PRINCIPAL, "approve", "automated evaluation run", factors)  # type: ignore[arg-type]
     except AgentFailure as exc:
         return Score(case=case.id, error=f"agent failed: {exc}")
     result = score(tra, case)

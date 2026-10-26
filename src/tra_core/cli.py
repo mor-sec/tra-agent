@@ -6,7 +6,8 @@ portal builds the Principal from the user's validated Entra ID token.
 Examples:
     tra-agent new --title "Payments portal" --artefact git:payments-portal-design.md \\
         --git-root examples/artefacts --user alice
-    tra-agent gate TRA-2026-001 G1 approve --user alice --rationale "Scope confirmed"
+    tra-agent gate TRA-2026-001 G1 approve --user alice --rationale "Scope confirmed" \\
+        --internet-facing yes --cardholder-data yes --shared-platform no
     tra-agent show TRA-2026-001
     tra-agent report TRA-2026-001 --out out/
     tra-agent verify-audit
@@ -30,7 +31,7 @@ from tra_core.orchestrator import LocalInvoker, Orchestrator
 from tra_core.reference import Reference
 from tra_core.register import CsvRegisterWriter, to_csv
 from tra_core.report import render
-from tra_core.schemas import Classification, Gate, WorkType
+from tra_core.schemas import Classification, Gate, TierFactors, WorkType
 from tra_core.store import FileTraStore
 from tra_core.tools import LocalToolClient, ToolSet
 
@@ -52,7 +53,9 @@ def _build(args: argparse.Namespace) -> tuple[Orchestrator, Reference, FileTraSt
     sources: dict[str, ArtefactSource] = {}
     if getattr(args, "git_root", None):
         sources["git"] = GitArtefactSource(Path(args.git_root))
-    toolset = ToolSet(reference, sources)
+    # Artefacts are read at the caller's clearance; commands without --clearance read no artefacts.
+    clearance = Classification.parse(getattr(args, "clearance", "OFFICIAL"))
+    toolset = ToolSet(reference, sources, lambda: clearance)
     tools = LocalToolClient(toolset)
     audit = AuditLog(JsonlAuditSink(home / "audit" / "events.jsonl"))
     if args.replay:
@@ -84,7 +87,16 @@ async def _run(args: argparse.Namespace) -> int:
         print(_status(tra))
     elif args.command == "gate":
         try:
-            tra, outcome = await orch.decide(args.tra, Gate(args.gate), _principal(args), args.decision, args.rationale)
+            flags = {"internet_facing": args.internet_facing, "handles_cardholder_data": args.cardholder_data,
+                     "shared_platform": args.shared_platform}
+            given = {k: v == "yes" for k, v in flags.items() if v is not None}
+            if given and len(given) < len(flags):
+                print("refused: give all three of --internet-facing, --cardholder-data and --shared-platform", file=sys.stderr)
+                return 2
+            factors = TierFactors(**given) if given else None
+            tra, outcome = await orch.decide(
+                args.tra, Gate(args.gate), _principal(args), args.decision, args.rationale, factors
+            )
         except GateError as exc:
             print(f"refused: {exc}", file=sys.stderr)
             return 2
@@ -94,6 +106,10 @@ async def _run(args: argparse.Namespace) -> int:
     elif args.command == "show":
         tra = store.load(args.tra)
         print(_status(tra))
+        if tra.intake:
+            i = tra.intake
+            print(f"  tier factors: internet_facing={i.internet_facing} handles_cardholder_data="
+                  f"{i.handles_cardholder_data} shared_platform={i.shared_platform}")
         if tra.critique:
             for i in tra.critique.issues:
                 print(f"  [{i.severity}] {i.where}: {i.issue}")
@@ -139,6 +155,8 @@ def main(argv: list[str] | None = None) -> int:
     gate.add_argument("gate", choices=[g.value for g in Gate])
     gate.add_argument("decision", choices=["approve", "approve_with_changes", "return"])
     gate.add_argument("--rationale", required=True)
+    for flag in ("--internet-facing", "--cardholder-data", "--shared-platform"):
+        gate.add_argument(flag, choices=["yes", "no"], help="G1: confirm this tier factor (see `show`)")
     gate.add_argument("--git-root")
     identity(gate, ["practitioner"])
 

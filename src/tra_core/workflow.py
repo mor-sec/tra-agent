@@ -18,8 +18,9 @@ ORDER = [
 # A gate sits at the end of these stages; the TRA cannot leave the stage until it passes.
 GATE_AFTER = {Stage.INTAKE: Gate.G1, Stage.EVALUATION: Gate.G2, Stage.ACCEPTANCE: Gate.G3}
 
-# Where a TRA goes when a reviewer returns it at a gate.
-RETURN_TO = {Gate.G1: Stage.INTAKE, Gate.G2: Stage.THREATS, Gate.G3: Stage.TREATMENT}
+# Where a TRA goes when a reviewer returns it at a gate. G3 goes back to analysis so the
+# risks are re-rated (treatment runs no model) and the changed draft passes G2 again.
+RETURN_TO = {Gate.G1: Stage.INTAKE, Gate.G2: Stage.THREATS, Gate.G3: Stage.ANALYSIS}
 
 
 def next_stage(stage: Stage) -> Stage:

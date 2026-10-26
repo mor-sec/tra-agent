@@ -100,6 +100,7 @@ DEFAULT_ROLE_MAP = {
     "TRA.Viewer": Role.VIEWER,
     "TRA.Practitioner": Role.PRACTITIONER,
     "TRA.RiskOwner": Role.RISK_OWNER,
+    "TRA.CISO": Role.CISO,
     "TRA.Admin": Role.ADMIN,
 }
 

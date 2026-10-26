@@ -9,17 +9,18 @@ from datetime import UTC, datetime, timedelta
 import pytest
 from pydantic import ValidationError
 
+from tests.conftest import PAYMENTS_TIER
 from tra_core.classification import Classification
 from tra_core.gates import GateError
 from tra_core.identity import Principal, Role
-from tra_core.schemas import Gate, Stage
+from tra_core.schemas import CritiqueIssue, Gate, Stage
 
 
 @pytest.fixture
 async def at_g2(rig, alice):
     r = rig()
     tra = await r.create(alice)
-    tra, _ = await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok")
+    tra, _ = await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
     assert tra.tier == 1
     return r, tra
 
@@ -41,17 +42,17 @@ async def test_workload_cannot_decide_a_gate(at_g2):
 
 async def test_tier1_needs_two_different_practitioners(at_g2, alice):
     r, tra = at_g2
-    _, first = await r.orch.decide(tra.id, Gate.G2, alice, "approve", "reviewed")
-    tra, second = await r.orch.decide(tra.id, Gate.G2, alice, "approve", "reviewed again")
+    _, first = await r.orch.decide(tra.id, Gate.G2, alice, "approve_with_changes", "reviewed")
+    tra, second = await r.orch.decide(tra.id, Gate.G2, alice, "approve_with_changes", "reviewed again")
     assert first.waiting_for and second.waiting_for and tra.awaiting_gate is Gate.G2
 
 
 async def test_approvals_of_different_content_do_not_combine(at_g2, alice, bob):
     r, tra = at_g2
     tra = r.orch.store.load(tra.id)
-    r.orch.gates.decide(tra, Gate.G2, alice, "approve", "reviewed")
+    r.orch.gates.decide(tra, Gate.G2, alice, "approve_with_changes", "reviewed")
     tra.risks[0].residual_likelihood = 1  # content changes after alice looked
-    outcome = r.orch.gates.decide(tra, Gate.G2, bob, "approve", "agree")
+    outcome = r.orch.gates.decide(tra, Gate.G2, bob, "approve_with_changes", "agree")
     assert not outcome.passed and outcome.waiting_for
 
 
@@ -80,8 +81,8 @@ async def test_empty_rationale_is_refused(at_g2, alice):
 @pytest.mark.parametrize("strong,age_minutes", [(False, 1), (True, 30), (True, None)])
 async def test_g3_needs_recent_step_up(at_g2, alice, bob, strong, age_minutes):
     r, tra = at_g2
-    await r.orch.decide(tra.id, Gate.G2, alice, "approve", "reviewed")
-    tra, _ = await r.orch.decide(tra.id, Gate.G2, bob, "approve", "agree")
+    await r.orch.decide(tra.id, Gate.G2, alice, "approve_with_changes", "reviewed")
+    tra, _ = await r.orch.decide(tra.id, Gate.G2, bob, "approve_with_changes", "agree")
     assert tra.awaiting_gate is Gate.G3
     when = None if age_minutes is None else datetime.now(UTC) - timedelta(minutes=age_minutes)
     owner = Principal.human("olivia", Role.RISK_OWNER, strong_auth=strong, auth_time=when)
@@ -95,3 +96,31 @@ async def test_unknown_decision_value_is_rejected(at_g2, alice):
     with pytest.raises(ValidationError):
         await r.orch.decide(tra.id, Gate.G2, alice, "auto-approve", "ok")
     assert r.orch.store.load(tra.id).awaiting_gate is Gate.G2
+
+
+async def test_open_major_issues_block_a_plain_approval(at_g2, alice):
+    r, tra = at_g2
+    assert any(i.severity == "major" for i in tra.critique.issues)
+    with pytest.raises(GateError, match="approve_with_changes"):
+        await r.orch.decide(tra.id, Gate.G2, alice, "approve", "looks fine")
+    assert r.orch.store.load(tra.id).awaiting_gate is Gate.G2
+
+
+async def test_critic_blocker_cannot_be_approved(at_g2, alice):
+    r, tra = at_g2
+    tra = r.orch.store.load(tra.id)
+    tra.critique.issues.append(CritiqueIssue(severity="blocker", where="R-01", issue="misleading rating"))
+    with pytest.raises(GateError, match="blocker"):
+        r.orch.gates.decide(tra, Gate.G2, alice, "approve_with_changes", "ship it")
+
+
+async def test_one_risk_owner_cannot_accept_a_critical_risk(at_g2, alice, bob, carol):
+    r, tra = at_g2
+    await r.orch.decide(tra.id, Gate.G2, alice, "approve_with_changes", "reviewed")
+    tra, _ = await r.orch.decide(tra.id, Gate.G2, bob, "approve_with_changes", "agree")
+    assert any(x.residual_rating.value == "Critical" for x in tra.risks)
+    tra, outcome = await r.orch.decide(tra.id, Gate.G3, carol, "approve", "accept")
+    assert not outcome.passed and "ciso" in outcome.waiting_for and tra.awaiting_gate is Gate.G3
+    ciso = Principal.human("dana", Role.CISO, strong_auth=True, auth_time=datetime.now(UTC))
+    tra, outcome = await r.orch.decide(tra.id, Gate.G3, ciso, "approve", "concur, dated plan agreed")
+    assert outcome.passed and tra.stage is Stage.MONITOR

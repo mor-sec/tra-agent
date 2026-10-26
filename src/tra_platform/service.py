@@ -5,7 +5,8 @@ The portal (or any client) sends the user's access token and an action:
     {"action": "create", "title": "...", "work_type": "new_system",
      "artefacts": [{"source": "git", "locator": "design.md"}]}
     {"action": "decide", "tra_id": "TRA-2026-001", "gate": "G1",
-     "decision": "approve", "rationale": "..."}
+     "decision": "approve", "rationale": "...",
+     "tier_factors": {"internet_facing": true, "handles_cardholder_data": true, "shared_platform": false}}
     {"action": "get", "tra_id": "TRA-2026-001"}
     {"action": "report", "tra_id": "TRA-2026-001"}
 
@@ -28,7 +29,7 @@ from tra_core.orchestrator import Orchestrator
 from tra_core.reference import Reference
 from tra_core.register import RegisterWriter, to_csv
 from tra_core.report import render
-from tra_core.schemas import TRA, Gate, WorkType
+from tra_core.schemas import TRA, Gate, TierFactors, WorkType
 from tra_core.store import TraStore
 from tra_core.tools import ToolClient, ToolError
 from tra_platform.auth import AuthError, ClaimsMapper, TokenExchanger, TokenValidator
@@ -117,8 +118,9 @@ class OrchestratorService:
             )
             return {"tra": summary(tra)}
         if action == "decide":
+            factors = TierFactors.model_validate(body["tier_factors"]) if body.get("tier_factors") is not None else None
             tra, outcome = await orch.decide(
-                body["tra_id"], Gate(body["gate"]), user, str(body["decision"]), str(body["rationale"])
+                body["tra_id"], Gate(body["gate"]), user, str(body["decision"]), str(body["rationale"]), factors
             )
             return {"tra": summary(tra), "outcome": asdict(outcome)}
         raise ValueError(f"unknown action {action!r}")

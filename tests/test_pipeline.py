@@ -6,6 +6,7 @@ import json
 
 import pytest
 
+from tests.conftest import PAYMENTS_TIER
 from tra_core.agents.base import AgentFailure
 from tra_core.audit import verify
 from tra_core.llm import ModelRouter, ReplayModelClient
@@ -26,22 +27,24 @@ async def _create(orch, user):
     )
 
 
-async def test_full_lifecycle(orchestrator, alice, bob, carol, reference, audit, tmp_path):
+async def test_full_lifecycle(orchestrator, alice, bob, carol, dana, reference, audit, tmp_path):
     tra = await _create(orchestrator, alice)
     assert tra.stage is Stage.INTAKE and tra.awaiting_gate is Gate.G1
     assert tra.tier == 1  # internet-facing and cardholder data
 
-    tra, _ = await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "scope confirmed")
+    tra, _ = await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "scope confirmed", PAYMENTS_TIER)
     assert tra.awaiting_gate is Gate.G2 and tra.stage is Stage.EVALUATION
     assert len(tra.threats) == 11 and len(tra.risks) == 6
     assert tra.critique is not None and not tra.critique.blocking
 
-    tra, outcome = await orchestrator.decide(tra.id, Gate.G2, alice, "approve", "reviewed")
+    tra, outcome = await orchestrator.decide(tra.id, Gate.G2, alice, "approve_with_changes", "reviewed")
     assert outcome.waiting_for  # Tier 1 four-eyes
-    tra, _ = await orchestrator.decide(tra.id, Gate.G2, bob, "approve", "agree")
+    tra, _ = await orchestrator.decide(tra.id, Gate.G2, bob, "approve_with_changes", "agree")
     assert tra.awaiting_gate is Gate.G3
 
-    tra, _ = await orchestrator.decide(tra.id, Gate.G3, carol, "approve", "accept the treatment plan")
+    tra, outcome = await orchestrator.decide(tra.id, Gate.G3, carol, "approve", "accept the treatment plan")
+    assert "ciso" in outcome.waiting_for  # R-01 is Critical
+    tra, _ = await orchestrator.decide(tra.id, Gate.G3, dana, "approve", "concur")
     assert tra.stage is Stage.MONITOR and tra.awaiting_gate is None
     assert (tmp_path / "reg" / f"{tra.id}-risk-register.csv").exists()
 
@@ -56,7 +59,7 @@ async def test_full_lifecycle(orchestrator, alice, bob, carol, reference, audit,
 
 async def test_ratings_come_from_code_not_the_model(orchestrator, alice):
     tra = await _create(orchestrator, alice)
-    tra, _ = await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "ok")
+    tra, _ = await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
     r1 = next(r for r in tra.risks if r.id == "R-01")
     assert r1.inherent_rating.value == "Critical"
     r6 = next(r for r in tra.risks if r.id == "R-06")
@@ -65,7 +68,7 @@ async def test_ratings_come_from_code_not_the_model(orchestrator, alice):
 
 async def test_invalid_output_is_retried_with_errors(orchestrator, alice, replay):
     tra = await _create(orchestrator, alice)
-    await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "ok")
+    await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
     threat_prompts = [u for name, u in replay.prompts if name == "ThreatList"]
     assert len(threat_prompts) == 2
     assert "STRIDE S does not apply to E04" in threat_prompts[1]
@@ -89,11 +92,32 @@ async def test_return_at_g2_reruns_threats_with_notes(tmp_path, reference, audit
     orch = Orchestrator(FileTraStore(tmp_path / "t"), LocalInvoker(ModelRouter({}, {"*": replay}), tools, audit, reference),
                         tools, audit, reference)
     tra = await _create(orch, alice)
-    await orch.decide(tra.id, Gate.G1, alice, "approve", "ok")
+    await orch.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
     tra, outcome = await orch.decide(tra.id, Gate.G2, alice, "return", "Add threats for the payment gateway flows F05 and F06")
     assert outcome.returned and tra.version == 2 and tra.awaiting_gate is Gate.G2
-    last_threat_prompt = [u for n, u in replay.prompts if n == "ThreatList"][-1]
-    assert "Add threats for the payment gateway flows F05 and F06" in last_threat_prompt
+    for schema in ("ThreatList", "ControlList", "RiskList", "ModelCritique"):
+        last = [u for n, u in replay.prompts if n == schema][-1]
+        assert "Add threats for the payment gateway flows F05 and F06" in last, schema
+
+
+async def test_return_at_g3_reruns_analysis_with_notes(tmp_path, reference, audit, toolset, alice, bob, carol):
+    from tests.conftest import REPLAY
+
+    recorded = json.loads(REPLAY.read_text())
+    for key in ("ControlList", "RiskList", "ModelCritique"):
+        recorded[key] = recorded[key] + recorded[key][-1:]
+    replay = ReplayModelClient(recorded)
+    tools = LocalToolClient(toolset)
+    orch = Orchestrator(FileTraStore(tmp_path / "t"), LocalInvoker(ModelRouter({}, {"*": replay}), tools, audit, reference),
+                        tools, audit, reference)
+    tra = await _create(orch, alice)
+    await orch.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
+    await orch.decide(tra.id, Gate.G2, alice, "approve_with_changes", "ok")
+    await orch.decide(tra.id, Gate.G2, bob, "approve_with_changes", "ok")
+    tra, outcome = await orch.decide(tra.id, Gate.G3, carol, "return", "R-01 must be mitigated before go-live")
+    assert outcome.returned and tra.version == 2 and tra.awaiting_gate is Gate.G2  # changed draft is reviewed again
+    last_risk_prompt = [u for n, u in replay.prompts if n == "RiskList"][-1]
+    assert "R-01 must be mitigated before go-live" in last_risk_prompt
 
 
 async def test_agent_gives_up_after_three_bad_answers(tmp_path, reference, audit, toolset, alice):
@@ -108,12 +132,12 @@ async def test_agent_gives_up_after_three_bad_answers(tmp_path, reference, audit
                         tools, audit, reference)
     tra = await _create(orch, alice)
     with pytest.raises(AgentFailure):
-        await orch.decide(tra.id, Gate.G1, alice, "approve", "ok")
+        await orch.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
 
 
 async def test_report_and_register(orchestrator, alice, reference):
     tra = await _create(orchestrator, alice)
-    tra, _ = await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "ok")
+    tra, _ = await orchestrator.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
     md = render(tra, reference)
     assert "```mermaid" in md and "subgraph Z_APP" in md
     assert md.count("OFFICIAL: Sensitive") >= 2

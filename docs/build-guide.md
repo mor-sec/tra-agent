@@ -89,6 +89,7 @@ On the orchestrator's registration only, define these app roles and assign them 
 | `TRA.Viewer` | Read TRAs at or below clearance |
 | `TRA.Practitioner` | Create TRAs; decide G1 and G2 |
 | `TRA.RiskOwner` | Decide G3 |
+| `TRA.CISO` | Co-accept at G3 when any residual risk is High or Critical |
 | `TRA.Admin` | Administration |
 | `TRA.Clearance.Official` | PSPF clearance: OFFICIAL |
 | `TRA.Clearance.OfficialSensitive` | PSPF clearance: OFFICIAL: Sensitive |
@@ -99,7 +100,7 @@ Assign the clearance roles from the personnel security record, not from team mem
 
 1. Create a Conditional Access **authentication context** with the ID `c1`, named "TRA risk acceptance".
 2. Target it with a policy that requires phishing-resistant MFA and sets sign-in frequency to **every time**.
-3. The portal requests `c1` when a risk owner opens G3.
+3. The portal requests `c1` when a risk owner or CISO opens G3.
 4. The orchestrator accepts a G3 decision only if the token's `acrs` claim includes `c1` and the token was issued in the last 10 minutes. See `ClaimsMapper` in [src/tra_platform/auth.py](../src/tra_platform/auth.py).
 
 ### 3.3 Federated credentials (no client secrets)

@@ -131,6 +131,14 @@ class IntakeRecord(BaseModel):
     tier: int | None = Field(default=None, description="Set by code, not by the model")
 
 
+class TierFactors(BaseModel):
+    """The tiering facts as the practitioner confirms them at G1; they replace the model's proposal."""
+
+    internet_facing: bool
+    handles_cardholder_data: bool
+    shared_platform: bool
+
+
 # ---------------------------------------------------------------- system model
 
 
@@ -268,6 +276,7 @@ class GateDecision(BaseModel):
     role: str
     rationale: str
     tra_hash: str
+    tier_factors: TierFactors | None = None  # G1 approvals only
     at: datetime = Field(default_factory=utcnow)
 
 

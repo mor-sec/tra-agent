@@ -6,9 +6,9 @@ The agent drafts; people decide. Every TRA stops at three human gates, and only 
 
 | Gate | After stage | Who | Policy enforced in code |
 |---|---|---|---|
-| G1 | Intake | Practitioner | Human identity, role, clearance at or above the TRA's classification |
-| G2 | Evaluation | Practitioner | As G1; Tier 1 needs two different practitioners on the same TRA version |
-| G3 | Acceptance | Risk owner | As G1, plus phishing-resistant MFA within the last 10 minutes |
+| G1 | Intake | Practitioner | Human identity, role, clearance at or above the TRA's classification; the practitioner confirms the tier factors, which replace the model's proposal |
+| G2 | Evaluation | Practitioner | As G1; Tier 1 needs two different practitioners on the same TRA version; no blocker issues, and open major issues need `approve_with_changes` |
+| G3 | Acceptance | Risk owner, plus CISO if any residual risk is High or Critical | As G1, plus phishing-resistant MFA within the last 10 minutes; each accepter is a different person |
 
 The core (`tra_core`) runs on a workstation. The platform adapters (`tra_platform`) run the same code on Amazon Bedrock AgentCore in Sydney or Microsoft Foundry in Australia East: see the [build guide](docs/build-guide.md).
 
@@ -25,11 +25,15 @@ pytest -q
 R=tests/fixtures/replay_payments.json
 tra-agent --replay $R new --title "Customer payments portal" \
   --artefact git:payments-portal-design.md --git-root examples/artefacts --user alice
-tra-agent --replay $R gate TRA-2026-001 G1 approve --user alice --rationale "Scope confirmed"
-tra-agent --replay $R gate TRA-2026-001 G2 approve --user alice --rationale "Reviewed"
-tra-agent --replay $R gate TRA-2026-001 G2 approve --user bob --rationale "Second review"
+tra-agent show TRA-2026-001   # the intake's proposed tier factors
+tra-agent --replay $R gate TRA-2026-001 G1 approve --user alice --rationale "Scope confirmed" \
+  --internet-facing yes --cardholder-data yes --shared-platform no
+tra-agent --replay $R gate TRA-2026-001 G2 approve_with_changes --user alice --rationale "Reviewed; gateway flows to add"
+tra-agent --replay $R gate TRA-2026-001 G2 approve_with_changes --user bob --rationale "Second review"
 tra-agent --replay $R gate TRA-2026-001 G3 approve --user carol --role risk_owner --strong-auth \
   --rationale "Accept treatment plan"
+tra-agent --replay $R gate TRA-2026-001 G3 approve --user dana --role ciso --strong-auth \
+  --rationale "Concur: R-01 is Critical"
 tra-agent report TRA-2026-001 --out out/
 tra-agent verify-audit
 ```

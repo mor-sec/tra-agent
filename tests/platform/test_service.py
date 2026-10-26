@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from tests.conftest import PAYMENTS_TIER
 from tests.platform.conftest import ORCHESTRATOR, PORTAL_AUDIENCE, audience
 from tra_core.audit import AuditLog, verify
 from tra_core.tools import LocalToolClient
@@ -48,14 +49,14 @@ async def test_full_lifecycle(service, signer, tmp_path):
     assert status == 200 and body["tra"]["awaiting_gate"] == "G1" and body["tra"]["classification"] == "OFFICIAL: Sensitive"
     tra_id = body["tra"]["id"]
 
-    def decide(gate, who, rationale="ok"):
-        return service.handle({"action": "decide", "tra_id": tra_id, "gate": gate, "decision": "approve", "rationale": rationale}, who)
+    def decide(gate, who, rationale="ok", decision="approve", tier_factors=None):
+        return service.handle({"action": "decide", "tra_id": tra_id, "gate": gate, "decision": decision, "rationale": rationale, "tier_factors": tier_factors}, who)
 
-    status, body = await decide("G1", alice)
+    status, body = await decide("G1", alice, tier_factors=PAYMENTS_TIER.model_dump())
     assert status == 200 and body["tra"]["awaiting_gate"] == "G2" and body["tra"]["threats"] == 11
-    status, body = await decide("G2", alice)
+    status, body = await decide("G2", alice, decision="approve_with_changes")  # the critique has open majors
     assert body["outcome"]["waiting_for"]  # Tier 1: a second practitioner
-    await decide("G2", bob)
+    await decide("G2", bob, decision="approve_with_changes")
 
     # G3 needs a risk owner who stepped up within ten minutes.
     stale = token(signer, "carol", ["TRA.RiskOwner", "TRA.Clearance.OfficialSensitive"], acrs=["c1"], iat=int(time.time()) - 3600)
@@ -63,6 +64,9 @@ async def test_full_lifecycle(service, signer, tmp_path):
     assert status == 409
     fresh = token(signer, "carol", ["TRA.RiskOwner", "TRA.Clearance.OfficialSensitive"], acrs=["c1"])
     status, body = await decide("G3", fresh, "accept the treatment plan")
+    assert status == 200 and "ciso" in body["outcome"]["waiting_for"]  # R-01 is Critical
+    ciso = token(signer, "dana", ["TRA.CISO", "TRA.Clearance.OfficialSensitive"], acrs=["c1"])
+    status, body = await decide("G3", ciso, "concur")
     assert status == 200 and body["tra"]["stage"] == "monitor"
 
     status, body = await service.handle({"action": "report", "tra_id": tra_id}, alice)

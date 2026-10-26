@@ -13,12 +13,15 @@ from tra_core.llm import ModelRouter, ReplayModelClient
 from tra_core.orchestrator import LocalInvoker, Orchestrator
 from tra_core.reference import Reference
 from tra_core.register import CsvRegisterWriter
+from tra_core.schemas import TierFactors
 from tra_core.store import FileTraStore
 from tra_core.tools import LocalToolClient, ToolSet
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples" / "artefacts"
 REPLAY = ROOT / "tests" / "fixtures" / "replay_payments.json"
+# What a practitioner confirms at G1 for the payments design (it matches the recorded intake).
+PAYMENTS_TIER = TierFactors(internet_facing=True, handles_cardholder_data=True, shared_platform=False)
 
 
 @pytest.fixture
@@ -62,3 +65,8 @@ def bob() -> Principal:
 @pytest.fixture
 def carol() -> Principal:
     return Principal.human("carol", Role.RISK_OWNER, strong_auth=True, auth_time=datetime.now(UTC))
+
+
+@pytest.fixture
+def dana() -> Principal:
+    return Principal.human("dana", Role.CISO, strong_auth=True, auth_time=datetime.now(UTC))

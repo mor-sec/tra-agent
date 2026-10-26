@@ -60,7 +60,7 @@ def prompt_version(name: str) -> str:
     return hashlib.sha256(text.encode()).hexdigest()[:12]
 
 
-_ARTEFACT_TAG = re.compile(r"<(\s*/?\s*artefact\b)", re.IGNORECASE)
+_UNTRUSTED_TAG = re.compile(r"<(\s*/?\s*(?:artefact|derived)\b)", re.IGNORECASE)
 
 
 def artefact_block(artefact: Artefact) -> str:
@@ -70,7 +70,7 @@ def artefact_block(artefact: Artefact) -> str:
     spacing, is escaped: a design document must not be able to end its own
     block or forge a second one with a different label.
     """
-    body = _ARTEFACT_TAG.sub(r"&lt;\1", artefact.text)
+    body = _UNTRUSTED_TAG.sub(r"&lt;\1", artefact.text)
     source, locator = html.escape(artefact.source, quote=True), html.escape(artefact.locator, quote=True)
     return (
         f'<artefact source="{source}" locator="{locator}" '
@@ -82,6 +82,12 @@ def as_json(value: Any) -> str:
     if isinstance(value, BaseModel):
         return value.model_dump_json(indent=1)
     return json.dumps(value, indent=1, default=str)
+
+
+def derived_block(name: str, value: Any) -> str:
+    """Wrap earlier agents' output, which quotes artefacts, so it stays untrusted downstream."""
+    body = _UNTRUSTED_TAG.sub(r"&lt;\1", as_json(value))
+    return f'<derived name="{html.escape(name, quote=True)}">\n{body}\n</derived>'
 
 
 class Specialist(Generic[Out]):

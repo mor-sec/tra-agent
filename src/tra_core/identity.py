@@ -22,6 +22,7 @@ class Role(str, Enum):
     VIEWER = "viewer"
     PRACTITIONER = "practitioner"
     RISK_OWNER = "risk_owner"
+    CISO = "ciso"
     ADMIN = "admin"
 
 

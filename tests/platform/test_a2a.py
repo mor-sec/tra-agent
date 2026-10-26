@@ -3,6 +3,7 @@
 import httpx
 import pytest
 
+from tests.conftest import PAYMENTS_TIER
 from tests.platform.conftest import ORCHESTRATOR, PORTAL_AUDIENCE, audience
 from tra_core.audit import verify
 from tra_core.orchestrator import Orchestrator
@@ -32,7 +33,7 @@ async def test_lifecycle_over_a2a(tmp_path, a2a_transport, signer, audit, refere
         artefacts=[("git", "payments-portal-design.md")],
         user=alice,
     )
-    tra, _ = await orch.decide(tra.id, Gate.G1, alice, "approve", "scope confirmed")
+    tra, _ = await orch.decide(tra.id, Gate.G1, alice, "approve", "scope confirmed", PAYMENTS_TIER)
     assert len(tra.threats) == 11 and len(tra.risks) == 6 and tra.awaiting_gate is Gate.G2
 
     events = audit.sink.read_all()

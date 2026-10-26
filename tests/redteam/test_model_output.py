@@ -8,6 +8,7 @@ import copy
 
 import pytest
 
+from tests.conftest import PAYMENTS_TIER
 from tra_core.agents.base import AgentFailure
 from tra_core.schemas import Gate
 
@@ -30,7 +31,7 @@ def _retry_with(name, bad_edit):
 
 async def _to_g2(r, alice):
     tra = await r.create(alice)
-    tra, _ = await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok")
+    tra, _ = await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
     return tra
 
 
@@ -82,7 +83,7 @@ async def test_persistent_bad_output_stops_the_pipeline(rig, alice):
     r = rig(always_bad)
     tra = await r.create(alice)
     with pytest.raises(AgentFailure, match="no valid output"):
-        await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok")
+        await r.orch.decide(tra.id, Gate.G1, alice, "approve", "ok", PAYMENTS_TIER)
 
 
 async def test_non_json_output_is_rejected(rig, alice):
@@ -98,3 +99,18 @@ async def test_intake_cannot_lower_the_classification(rig, alice):
     r = rig(_retry_with("IntakeRecord", lambda b: b.update(proposed_classification="OFFICIAL")))
     tra = await r.create(alice)
     assert tra.classification.value == "OFFICIAL_SENSITIVE"
+
+
+async def test_intake_cannot_lower_the_tier(rig, alice, bob):
+    """A model that plays down exposure only sets a provisional tier; the practitioner's G1 confirmation decides."""
+    def understate(responses):
+        responses["IntakeRecord"][0].update(internet_facing=False, handles_cardholder_data=False, shared_platform=False)
+
+    r = rig(understate)
+    tra = await r.create(alice)
+    assert tra.tier == 2  # provisional, from the model's proposal
+    tra, _ = await r.orch.decide(tra.id, Gate.G1, alice, "approve", "exposure corrected", PAYMENTS_TIER)
+    assert tra.tier == 1 and tra.intake.handles_cardholder_data
+    assert tra.gates[-1].tier_factors == PAYMENTS_TIER
+    _, outcome = await r.orch.decide(tra.id, Gate.G2, alice, "approve_with_changes", "reviewed")
+    assert outcome.waiting_for  # the two-person rule follows the confirmed tier
